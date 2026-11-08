@@ -19,11 +19,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-- name: Unpack project
-  run: |
-    rm -rf buildsrc
-    mkdir buildsrc
-    unzip -o YN360Control_v0.3_filtered.zip -d buildsrc
+
       - name: Configure Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
@@ -36,7 +32,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
-    
+      - name: Unpack project
+        run: |
+          rm -rf buildsrc
+          mkdir buildsrc
+          unzip -o YN360Control_v0.3_filtered.zip -d buildsrc
+
       - name: Build APK
         working-directory: buildsrc/YN360Control
         run: gradle assembleDebug --stacktrace
