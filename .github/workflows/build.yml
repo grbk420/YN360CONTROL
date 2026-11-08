@@ -36,8 +36,7 @@ jobs:
         run: |
           rm -rf buildsrc
           mkdir buildsrc
-          unzip -o YN360Control_v0.2_ready_for_github.zip -d buildsrc
-
+          unzip -o unzip -o YN360Control_v0.3_filtered.zip -d buildsrc
       - name: Build APK
         working-directory: buildsrc/YN360Control
         run: gradle assembleDebug --stacktrace
