@@ -23,10 +23,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build current source (not older ZIP)
+      - name: Unseal persistent signing key
+        env:
+          YN360_SIGNING_PASSWORD: ${{ secrets.YN360_SIGNING_PASSWORD }}
+        run: |
+          test -n "$YN360_SIGNING_PASSWORD" || { echo "::error::Add the YN360_SIGNING_PASSWORD repository secret before building."; exit 1; }
+          base64 --decode signing/yn360-release.p12.enc.b64 > /tmp/yn360-release.p12.enc
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 300000 -in /tmp/yn360-release.p12.enc -out /tmp/yn360-release.p12 -pass env:YN360_SIGNING_PASSWORD
+          chmod 600 /tmp/yn360-release.p12
+          echo "YN360_KEYSTORE_PATH=/tmp/yn360-release.p12" >> "$GITHUB_ENV"
+      - name: Build stable signed release
         working-directory: source
-        run: gradle assembleDebug --stacktrace
-      - uses: actions/upload-artifact@v4
+        env:
+          YN360_SIGNING_PASSWORD: ${{ secrets.YN360_SIGNING_PASSWORD }}
+        run: gradle assembleRelease --stacktrace
+      - name: Upload stable APK
+        uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v0.7-debug
-          path: source/app/build/outputs/apk/debug/app-debug.apk
+          name: YN360-Control-v0.7-stable
+          path: source/app/build/outputs/apk/release/app-release.apk
