@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v0.11-stable
+          name: YN360-Control-v0.12-stable
           path: source/app/build/outputs/apk/release/app-release.apk
       - name: Publish v0.8 release APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v0.11.apk
-          if gh release view v0.11.0 >/dev/null 2>&1; then
-            gh release upload v0.11.0 YN360-Control-v0.11.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v0.12.apk
+          if gh release view v0.12.0 >/dev/null 2>&1; then
+            gh release upload v0.12.0 YN360-Control-v0.12.apk --clobber
           else
-            gh release create v0.11.0 YN360-Control-v0.11.apk \
-              --title "YN360 Control v0.11" \
-              --notes "Diagnostyka Lampy 2: niezależne testy RGB, natywnego CCT i awaryjnej bieli RGB, ponowne połączenie, kopiowanie stanu GATT i liczników. Wymagane testy na fizycznych lampach. Oprogramowanie weryfikowane przez kompilator Android; działanie efektów na rzeczywistych lampach wymaga próby."
+            gh release create v0.12.0 YN360-Control-v0.12.apk \
+              --title "YN360 Control v0.12" \
+              --notes "Rozszerzona diagnostyka: mapowanie fizycznych lamp, właściwości WRITE GATT, tryb z potwierdzeniem, liczba callbacków i rzeczywista ramka protokołu. Wymaga sprawdzenia na lampach. Oprogramowanie weryfikowane przez kompilator Android; działanie efektów na rzeczywistych lampach wymaga próby."
           fi
