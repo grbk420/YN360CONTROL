@@ -466,8 +466,8 @@ public class MainActivity extends Activity {
             Toast.makeText(this,"Połącz wybraną lampę",Toast.LENGTH_SHORT).show();
             return;
         }
-        if(mode==1) applyWhiteToMask(ready);
-        else applyRgbToMask(ready,red.getProgress(),green.getProgress(),blue.getProgress());
+        if(mode==1) applyWhiteToMask(ready,true);
+        else forMask(ready,l->l.setModeRgb(scaled(red.getProgress()),scaled(green.getProgress()),scaled(blue.getProgress())));
         status.setText((mode==1?"CCT":"RGB")+" • komenda wysłana do "+targetLabel(ready)
             +(ready==mask?"":" (druga lampa niepołączona)"));
     }
@@ -544,12 +544,13 @@ public class MainActivity extends Activity {
     private void applyRgb(int r,int g,int b){ applyRgbToMask(selectedMask(),r,g,b); }
     private void applyRgbToMask(int mask,int r,int g,int b){ forMask(mask,l->l.rgb(scaled(r),scaled(g),scaled(b))); }
     private void applyWhite(){ applyWhiteToMask(selectedMask()); }
-    private void applyWhiteToMask(int mask){
+    private void applyWhiteToMask(int mask){ applyWhiteToMask(mask,false); }
+    private void applyWhiteToMask(int mask,boolean priority){
         final int temp=whiteTemp.getProgress();
         final int b99=Math.max(0,brightnessCct.getProgress()*99/255);
         final int cool=b99*temp/255;
         final int warm=b99*(255-temp)/255;
-        if((mask&1)!=0 && light1.isReady()) light1.white(cool,warm);
+        if((mask&1)!=0 && light1.isReady()) { if(priority)light1.setModeWhite(cool,warm); else light1.white(cool,warm); }
         if((mask&2)!=0 && light2.isReady()){
             if(cctRgbFallback2!=null && cctRgbFallback2.isChecked()){
                 // Compatibility option for a lamp that accepts RGB but ignores native white packets.
@@ -558,8 +559,8 @@ public class MainActivity extends Activity {
                 int r=Math.round((255-28*fraction)*brightnessCct.getProgress()/255f);
                 int g=Math.round((149+90*fraction)*brightnessCct.getProgress()/255f);
                 int b=Math.round((80+175*fraction)*brightnessCct.getProgress()/255f);
-                light2.rgb(r,g,b);
-            } else light2.white(cool,warm);
+                if(priority)light2.setModeRgb(r,g,b);else light2.rgb(r,g,b);
+            } else {if(priority)light2.setModeWhite(cool,warm);else light2.white(cool,warm);}
         }
     }
 
