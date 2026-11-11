@@ -118,11 +118,12 @@ public final class LampEffects {
                     break;
                 }
                 case STROBE_TURBO: {
-                    // Target 90 ms per ON/OFF frame: ~5.6 cycles/sec when BLE supports
-                    // WRITE_NO_RESPONSE. Older lamps/firmware may be slower in practice.
-                    boolean on=(step++ & 1)==0;
-                    rgb(mask,on?255:0,on?255:0,on?255:0);
-                    delay=pace(speed,260,90);
+                    // Snap-pulse pattern: shorter ON window followed by longer darkness.
+                    // Goal at max: ~65 ms on / 115 ms off (~5.6 Hz, 36% duty).
+                    // Bluetooth transport, Android scheduling, and LED drivers affect actual output.
+                    boolean lit=(step++ & 1)==0;
+                    rgb(mask,lit?255:0,lit?255:0,lit?255:0);
+                    delay=lit?65:pace(speed,380,115);
                     break;
                 }
                 case STROBE: {
@@ -301,7 +302,7 @@ public final class LampEffects {
                 }
                 default: return;
             }
-            if(mask!=0) handler.postDelayed(this,Math.max(kind==Kind.STROBE_TURBO?90:150,delay));
+            if(mask!=0) handler.postDelayed(this,Math.max(kind==Kind.STROBE_TURBO?65:150,delay));
         }
     }
 }

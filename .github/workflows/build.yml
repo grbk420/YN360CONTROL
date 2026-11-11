@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v1.4-final
+          name: YN360-Control-v1.5-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish FINAL v1.4 APK
+      - name: Publish FINAL v1.5 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.4.apk
-          if gh release view v1.4.0 >/dev/null 2>&1; then
-            gh release upload v1.4.0 YN360-Control-v1.4.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.5.apk
+          if gh release view v1.5.0 >/dev/null 2>&1; then
+            gh release upload v1.5.0 YN360-Control-v1.5.apk --clobber
           else
-            gh release create v1.4.0 YN360-Control-v1.4.apk \
-              --title "YN360 Control FINAL v1.4" \
-              --notes "Dodano Strobe Turbo (90ms polcykl, cel okolo 5-6 Hz przy odpowiednio szybkim BLE) z odrebna, ograniczona do trybu Turbo kolejka WRITE_NO_RESPONSE. Zwykle efekty bez zmian. Uwaga: swiatlo blyskowe moze wywolac napady u osob wrazliwych. Rzeczywista szybkosc wymaga sprawdzenia na lampach."
+            gh release create v1.5.0 YN360-Control-v1.5.apk \
+              --title "YN360 Control FINAL v1.5" \
+              --notes "Strobe Turbo Snap: krotszy impuls i dluzszy czas ciemnosci dla wyrazniejszego efektu stop-klatki, przy zachowaniu ograniczen Bluetooth; cala kolekcja scen w jednej sekcji bez podzialu na nowe i starsze. Rzeczywista czestotliwosc wymaga testu na lampach. Ostrzezenie o fotosensytywnosci."
           fi

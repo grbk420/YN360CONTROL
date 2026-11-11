@@ -235,7 +235,7 @@ public class BleLightController {
         if(noResponse)noResponseWrites++;else responseWrites++;
         if(noResponse){
             // No-response writes have no guaranteed completion callback.
-            io.postDelayed(()->finishWrite(ticket),turboStrobe?78:145);
+            io.postDelayed(()->finishWrite(ticket),turboStrobe?65:145);
         }else{
             // Recover from a missing BLE callback rather than permanently freezing this lamp.
             io.postDelayed(()->finishWrite(ticket),1100);
