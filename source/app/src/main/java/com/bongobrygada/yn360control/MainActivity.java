@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     private int activeTab=0;
     private CheckBox cctRgbFallback2;
     private TextView diagResults2;
+    private CheckBox diagUseAck2;
     private String diagLast2="Nie uruchomiono testu";
     private SharedPreferences prefs;
     private static final String PREF_L1 = "lamp1_mac";
@@ -70,6 +71,7 @@ public class MainActivity extends Activity {
         target1=findViewById(R.id.target1); target2=findViewById(R.id.target2); targetBoth=findViewById(R.id.targetBoth);
         cctRgbFallback2=findViewById(R.id.cctRgbFallback2);
         diagResults2=findViewById(R.id.diagResults2);
+        diagUseAck2=findViewById(R.id.diagUseAck2);
 
         BluetoothManager bm=(BluetoothManager)getSystemService(BLUETOOTH_SERVICE); adapter=bm.getAdapter();
         light1=new BleLightController(this, s->runOnUiThread(()->{status.setText("L1: "+s); updateButtons();}));
@@ -458,6 +460,24 @@ public class MainActivity extends Activity {
     }
 
     private void setupDiagnostics2() {
+        diagUseAck2.setChecked(prefs.getBoolean("lamp2_prefer_ack",false));
+        light2.setPreferResponse(diagUseAck2.isChecked());
+        diagUseAck2.setOnCheckedChangeListener((button,enabled)->{
+            prefs.edit().putBoolean("lamp2_prefer_ack",enabled).apply();
+            light2.setPreferResponse(enabled);
+            diagLast2=enabled?"Tryb testowy: WRITE z ACK, o ile obsługiwany":"Automatyczny tryb GATT";
+            showDiag2();
+        });
+        findViewById(R.id.diagIdentify1).setOnClickListener(v->{
+            if(!light1.isReady()){Toast.makeText(this,"Lampa 1 niepołączona",Toast.LENGTH_SHORT).show();return;}
+            identify(light1,"Lampa 1");
+        });
+        findViewById(R.id.diagIdentify2).setOnClickListener(v->{
+            if(!light2.isReady()){Toast.makeText(this,"Lampa 2 niepołączona",Toast.LENGTH_SHORT).show();return;}
+            identify(light2,"Lampa 2");
+            diagLast2="Identyfikacja fizyczna Lampy 2 — sprawdź, która lampa miga";
+            showDiag2();
+        });
         findViewById(R.id.diagRgb2).setOnClickListener(v->runLamp2Test("RGB CZERWONY",()->light2.setModeRgb(255,0,0)));
         findViewById(R.id.diagWhite2).setOnClickListener(v->runLamp2Test("NATYWNE CCT",()->light2.setModeWhite(50,50)));
         findViewById(R.id.diagFallback2).setOnClickListener(v->runLamp2Test("BIEL PRZEZ RGB",()->light2.setModeRgb(255,220,180)));
@@ -478,7 +498,7 @@ public class MainActivity extends Activity {
             },500);
         });
         findViewById(R.id.diagCopy2).setOnClickListener(v->{
-            String report="YN360 Control v0.11 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
+            String report="YN360 Control v0.12 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
             android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(android.content.ClipData.newPlainText("YN360 diagnostyka L2",report));
             Toast.makeText(this,"Skopiowano diagnostykę Lampy 2",Toast.LENGTH_SHORT).show();
