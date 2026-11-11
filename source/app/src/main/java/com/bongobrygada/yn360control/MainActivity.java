@@ -24,7 +24,8 @@ public class MainActivity extends Activity {
     private boolean slidersFromPalette=false;
     private int paletteR=255, paletteG=0, paletteB=0;
     private LampEffects lampEffects;
-    private TextView lamp1State,lamp2State,colorValue,timerStatus1,timerStatus2;
+    private TextView lamp1State,lamp2State,colorValue,timerStatus1,timerStatus2,selectedTarget;
+    private View timerBody, diagnosticsBody;
     private Spinner timerDuration;
     private final Handler timerUi=new Handler(Looper.getMainLooper());
     private final int[] timerMinutes={5,15,30,60,120,240};
@@ -65,6 +66,7 @@ public class MainActivity extends Activity {
         status=findViewById(R.id.status);
         lamp1State=findViewById(R.id.lamp1State); lamp2State=findViewById(R.id.lamp2State); colorValue=findViewById(R.id.colorValue);
         timerStatus1=findViewById(R.id.timerStatus1); timerStatus2=findViewById(R.id.timerStatus2); timerDuration=findViewById(R.id.timerDuration);
+        timerBody=findViewById(R.id.timerBody); diagnosticsBody=findViewById(R.id.diagnosticsBody); selectedTarget=findViewById(R.id.selectedTarget);
         brightness=findViewById(R.id.brightness); brightnessCct=findViewById(R.id.brightnessCct); whiteTemp=findViewById(R.id.whiteTemp);
         red=findViewById(R.id.red); green=findViewById(R.id.green); blue=findViewById(R.id.blue);
         fxSpeed=findViewById(R.id.fxSpeed);
@@ -137,6 +139,10 @@ public class MainActivity extends Activity {
         target1.setOnClickListener(v->onTargetChanged());
         target2.setOnClickListener(v->onTargetChanged());
         targetBoth.setOnClickListener(v->onTargetChanged());
+        int savedTarget=prefs.getInt("target_mask",1);
+        if(savedTarget==2) target2.setChecked(true); else if(savedTarget==3) targetBoth.setChecked(true); else target1.setChecked(true);
+        refreshTargetLabel();
+        setupCollapsibleSections();
         new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 900);
     }
 
@@ -152,12 +158,58 @@ public class MainActivity extends Activity {
                 +(ready==requested?"":" (pozostałe rozłączone)"));
         }
     }
+    private void refreshTargetLabel(){
+        int mask=selectedMask();
+        if(selectedTarget!=null) selectedTarget.setText("AKTYWNE STEROWANIE • "+targetLabel(mask).toUpperCase(java.util.Locale.ROOT));
+    }
+    private void setupCollapsibleSections(){
+        setTimerExpanded(prefs.getBoolean("timer_expanded",false));
+        setDiagnosticsExpanded(prefs.getBoolean("diagnostics_expanded",false));
+        findViewById(R.id.timerToggle).setOnClickListener(v->{
+            boolean expanded=timerBody.getVisibility()!=View.VISIBLE;
+            prefs.edit().putBoolean("timer_expanded",expanded).apply();
+            setTimerExpanded(expanded);
+        });
+        findViewById(R.id.diagToggle).setOnClickListener(v->{
+            boolean expanded=diagnosticsBody.getVisibility()!=View.VISIBLE;
+            prefs.edit().putBoolean("diagnostics_expanded",expanded).apply();
+            setDiagnosticsExpanded(expanded);
+        });
+    }
+    private void setTimerExpanded(boolean expanded){
+        timerBody.setVisibility(expanded?View.VISIBLE:View.GONE);
+        ((Button)findViewById(R.id.timerToggle)).setText(expanded?"⌄ Ukryj timer":"⏱ Wyłącznik czasowy ▾");
+    }
+    private void setDiagnosticsExpanded(boolean expanded){
+        diagnosticsBody.setVisibility(expanded?View.VISIBLE:View.GONE);
+        ((Button)findViewById(R.id.diagToggle)).setText(expanded?"⌄ Ukryj diagnostykę":"⚙ Serwis i diagnostyka ▾");
+    }
+    private void updateTimerPresets(){
+        int[] ids={R.id.timer5,R.id.timer15,R.id.timer30,R.id.timer60,R.id.timer120};
+        int current=timerDuration.getSelectedItemPosition();
+        for(int i=0;i<ids.length;i++){
+            ((Button)findViewById(ids[i])).setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                    android.graphics.Color.parseColor(i==current?"#7445CE":"#29334E")));
+        }
+    }
     private void setupTimerControls(){
         String[] choices={"5 minut","15 minut","30 minut","1 godzina","2 godziny","4 godziny"};
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,choices);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         timerDuration.setAdapter(adapter);
-        timerDuration.setSelection(2);
+        timerDuration.setSelection(Math.max(0,Math.min(5,prefs.getInt("last_timer_index",2))));
+        int[] presets={R.id.timer5,R.id.timer15,R.id.timer30,R.id.timer60,R.id.timer120};
+        for(int i=0;i<presets.length;i++){
+            final int index=i;
+            findViewById(presets[i]).setOnClickListener(v->timerDuration.setSelection(index));
+        }
+        timerDuration.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){
+                prefs.edit().putInt("last_timer_index",pos).apply();updateTimerPresets();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> p){}
+        });
+        updateTimerPresets();
         findViewById(R.id.startTimerBtn).setOnClickListener(v->{
             int mask=selectedMask();
             int ready=readyMask(mask);
@@ -261,7 +313,9 @@ public class MainActivity extends Activity {
         if(!hasBtPermissions() || adapter==null || !adapter.isEnabled()) return;
         String m1=prefs.getString(PREF_L1,null), m2=prefs.getString(PREF_L2,null);
         try { if(m1!=null) light1.connect(adapter.getRemoteDevice(m1)); } catch(Exception ignored){}
-        try { if(m2!=null) light2.connect(adapter.getRemoteDevice(m2)); } catch(Exception ignored){}
+        try { if(m2!=null && !m2.equals(m1)) light2.connect(adapter.getRemoteDevice(m2));
+            else if(m2!=null) status.setText("Te same adresy BLE dla obu lamp. Wybierz osobne urządzenia.");
+        } catch(Exception ignored){}
     }
 
     @SuppressWarnings("MissingPermission")
@@ -521,7 +575,7 @@ public class MainActivity extends Activity {
             },500);
         });
         findViewById(R.id.diagCopy2).setOnClickListener(v->{
-            String report="YN360 Control v0.13 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
+            String report="YN360 Control FINAL v1.0 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
             android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(android.content.ClipData.newPlainText("YN360 diagnostyka L2",report));
             Toast.makeText(this,"Skopiowano diagnostykę Lampy 2",Toast.LENGTH_SHORT).show();
@@ -572,7 +626,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.rgbSection).setVisibility(selected==0?View.VISIBLE:View.GONE);
         findViewById(R.id.whiteSection).setVisibility(selected==1?View.VISIBLE:View.GONE);
         findViewById(R.id.fxSection).setVisibility(selected==2?View.VISIBLE:View.GONE);
-        int active=android.graphics.Color.parseColor("#6532C7");
+        int active=android.graphics.Color.parseColor("#7742D9");
         int inactive=android.graphics.Color.parseColor("#252F46");
         int[] ids={R.id.tabRgb,R.id.tabWhite,R.id.tabFx};
         for(int i=0;i<3;i++) {
@@ -601,11 +655,14 @@ public class MainActivity extends Activity {
     }
 
     private void updatePreview(int r,int g,int b){
+        colorPalette.setColor(r,g,b);
         colorPreview.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(r,g,b)));
         if(colorValue!=null) colorValue.setText(String.format(java.util.Locale.US,"#%02X%02X%02X • RGB %d, %d, %d",r,g,b,r,g,b));
     }
 
     private void onTargetChanged(){
+        prefs.edit().putInt("target_mask",selectedMask()).apply();
+        refreshTargetLabel();
         if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
         int mask=selectedMask();
         if(activeTab==1) {
