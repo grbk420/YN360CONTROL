@@ -40,5 +40,5 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v0.7-stable
+          name: YN360-Control-v0.8-stable
           path: source/app/build/outputs/apk/release/app-release.apk
