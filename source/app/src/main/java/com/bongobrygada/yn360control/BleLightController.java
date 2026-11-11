@@ -22,6 +22,7 @@ public class BleLightController {
     private int inFlightId = 0;
     private boolean inFlightNoResponse = false;
     private int retryFailures = 0;
+    private final ArrayDeque<byte[]> priorityQueue = new ArrayDeque<>();
     private long generation = 0;
     private String deviceAddress;
     private byte[] lastLitPacket = new byte[]{(byte)0xAE,(byte)0xAA,0x01,50,45,0x56};
@@ -51,13 +52,14 @@ public class BleLightController {
     @SuppressWarnings("MissingPermission")
     public synchronized void disconnect(){
         generation++;
-        ready = false; send = null; queue.clear(); writing=false; inFlightId++;
+        ready = false; send = null; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++;
         if(gatt != null){ try{gatt.disconnect();}catch(Exception ignored){} try{gatt.close();}catch(Exception ignored){} gatt = null; }
     }
 
     public synchronized void cancelPending(){
         generation++;
         queue.clear();
+        priorityQueue.clear();
     }
 
     private String safeName(BluetoothDevice d){
@@ -67,7 +69,7 @@ public class BleLightController {
     private final BluetoothGattCallback callback = new BluetoothGattCallback() {
         @Override public void onConnectionStateChange(BluetoothGatt g, int status, int newState) {
             if(status==BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED){ listener.onState("Połączono, wykrywam usługę…"); g.discoverServices(); }
-            else if(newState == BluetoothProfile.STATE_DISCONNECTED){ synchronized(BleLightController.this){ if(g!=gatt) return; ready=false; send=null; queue.clear(); writing=false; inFlightId++; generation++; } listener.onState("Rozłączono"); }
+            else if(newState == BluetoothProfile.STATE_DISCONNECTED){ synchronized(BleLightController.this){ if(g!=gatt) return; ready=false; send=null; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++; generation++; } listener.onState("Rozłączono"); }
         }
         @Override public void onServicesDiscovered(BluetoothGatt g, int status){
             if(g!=gatt || status!=BluetoothGatt.GATT_SUCCESS){listener.onState("Błąd wykrywania usług");return;}
@@ -94,6 +96,15 @@ public class BleLightController {
         drain();
     }
 
+    /** Direct mode change: clear obsolete color frames and prioritize newest CCT/RGB. */
+    public synchronized void writeMode(byte[] data){
+        if(!ready || gatt==null || send==null)return;
+        queue.clear();
+        priorityQueue.clear();
+        priorityQueue.offerLast(data.clone());
+        drain();
+    }
+
     private synchronized void finishWrite(int ticket){
         if(!writing || ticket!=inFlightId) return;
         writing=false;
@@ -103,8 +114,8 @@ public class BleLightController {
 
     @SuppressWarnings("MissingPermission")
     private synchronized void drain(){
-        if(writing || !ready || gatt==null || send==null || queue.isEmpty()) return;
-        byte[] data=queue.pollFirst();
+        if(writing || !ready || gatt==null || send==null || (queue.isEmpty() && priorityQueue.isEmpty())) return;
+        byte[] data=priorityQueue.isEmpty()?queue.pollFirst():priorityQueue.pollFirst();
         int props=send.getProperties();
         boolean noResponse=(props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0;
         int type=noResponse?BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE:BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
@@ -123,7 +134,7 @@ public class BleLightController {
         }catch(Exception ignored){}
         if(!accepted){
             writing=false;
-            if(retryFailures++<5)queue.offerFirst(data);
+            if(retryFailures++<5)priorityQueue.offerFirst(data);
             io.postDelayed(this::drain,180);
             return;
         }
@@ -138,8 +149,8 @@ public class BleLightController {
 
     // YN360 protocol: 0xA3 is the actual OFF instruction (NOT 0xEE).
     // Bluetooth stays alive while the LEDs are switched off.
-    public void off(){ write(new byte[]{(byte)0xAE,(byte)0xA3,0,0,0,0x56}); }
-    public void turnOn(){ write(lastLitPacket.clone()); }
+    public void off(){ writeMode(new byte[]{(byte)0xAE,(byte)0xA3,0,0,0,0x56}); }
+    public void turnOn(){ writeMode(lastLitPacket.clone()); }
 
     private void remember(byte[] packet){
         lastLitPacket=packet.clone();
@@ -161,6 +172,18 @@ public class BleLightController {
         byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,0x01,(byte)c,(byte)w,0x56};
         if(c+w>0)remember(packet);
         write(packet);
+    }
+    public void setModeRgb(int r,int g,int b){
+        int rr=clamp255(r),gg=clamp255(g),bb=clamp255(b);
+        byte[] packet=new byte[]{(byte)0xAE,(byte)0xA1,(byte)rr,(byte)gg,(byte)bb,0x56};
+        if(rr+gg+bb>0)remember(packet);
+        writeMode(packet);
+    }
+    public void setModeWhite(int cool,int warm){
+        int c=clamp99(cool),w=clamp99(warm);
+        byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,0x01,(byte)c,(byte)w,0x56};
+        if(c+w>0)remember(packet);
+        writeMode(packet);
     }
     private int clamp255(int v){ return Math.max(0,Math.min(255,v)); }
     private int clamp99(int v){ return Math.max(0,Math.min(99,v)); }
