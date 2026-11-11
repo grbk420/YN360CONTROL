@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    android:background="#0B0D10">
+    android:background="#080D19">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,10 +14,18 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="YN360 CONTROL"
+            android:text="YN360 CONTROL  •  v0.7"
             android:textColor="#FFFFFF"
             android:textSize="26sp"
             android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/updatesBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="SPRAWDŹ AKTUALIZACJE"
+            android:backgroundTint="#252048"
+            android:textColor="#FFFFFF" />
 
         <TextView
             android:id="@+id/status"
@@ -32,7 +40,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="POŁĄCZENIE"
-            android:textColor="#FF9A57"
+            android:textColor="#9D7DFF"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -94,7 +102,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Przesuwaj palcem po palecie — kolor wysyła się na żywo"
+            android:text="Przesuwaj palcem: kolor zmienia się od razu, bez zatwierdzania"
             android:textColor="#AEB6C2"
             android:textSize="13sp"
             android:paddingBottom="8dp" />
@@ -117,7 +125,7 @@
         <SeekBar android:id="@+id/green" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="0" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="B" android:textColor="#D0D5DD" />
         <SeekBar android:id="@+id/blue" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="0" />
-        <Button android:id="@+id/rgbBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="USTAW RGB" />
+        <Button android:id="@+id/rgbBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="PONÓW RGB (opcjonalnie)" />
 
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="EFEKTY" android:textColor="#FF9A57" android:textStyle="bold" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Szybkość" android:textColor="#F5F7FA" android:textStyle="bold" />

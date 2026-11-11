@@ -8,6 +8,7 @@ import android.content.*;
 import android.content.pm.PackageManager;
 import android.os.*;
 import android.widget.*;
+import android.view.View;
 import java.util.*;
 
 public class MainActivity extends Activity {
@@ -19,6 +20,8 @@ public class MainActivity extends Activity {
     private android.view.View colorPreview;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private Runnable palettePending;
+    private long lastLiveSend=0L;
+    private boolean slidersFromPalette=false;
     private int paletteR=255, paletteG=0, paletteB=0;
     private int fxToken=0;
     private RadioButton target1, target2, targetBoth;
@@ -55,6 +58,7 @@ public class MainActivity extends Activity {
         light1=new BleLightController(this, s->runOnUiThread(()->{status.setText("L1: "+s); updateButtons();}));
         light2=new BleLightController(this, s->runOnUiThread(()->{status.setText("L2: "+s); updateButtons();}));
 
+        findViewById(R.id.updatesBtn).setOnClickListener(v->openUpdates());
         findViewById(R.id.connect1).setOnClickListener(v->chooseVerifiedLamp(1));
         findViewById(R.id.connect2).setOnClickListener(v->chooseVerifiedLamp(2));
         findViewById(R.id.identify1).setOnClickListener(v->identify(light1, "Lampa 1"));
@@ -265,41 +269,59 @@ public class MainActivity extends Activity {
     }
 
 
+    // Live controls: throttle BLE writes to avoid flooding GATT queues.
+    private void queueLiveRgb(int mask,int r,int g,int b) {
+        if(palettePending!=null) ui.removeCallbacks(palettePending);
+        final int rr=r,gg=g,bb=b,mm=mask;
+        long delay=Math.max(0,85-(android.os.SystemClock.uptimeMillis()-lastLiveSend));
+        palettePending=()->{
+            palettePending=null;
+            lastLiveSend=android.os.SystemClock.uptimeMillis();
+            applyRgbToMask(mm,rr,gg,bb);
+        };
+        ui.postDelayed(palettePending,delay);
+    }
+
     private void setupManualSliders(){
         SeekBar.OnSeekBarChangeListener listener=new SeekBar.OnSeekBarChangeListener(){
-            public void onProgressChanged(SeekBar s,int p,boolean fromUser){}
-            public void onStartTrackingTouch(SeekBar s){}
-            public void onStopTrackingTouch(SeekBar s){
+            public void onProgressChanged(SeekBar s,int p,boolean fromUser){
+                if(!fromUser || slidersFromPalette) return;
                 stopFx(false);
-                if(s==red || s==green || s==blue){
+                final int mask=selectedMask();
+                if(s==red || s==green || s==blue) {
                     manualMode=1;
                     paletteR=red.getProgress(); paletteG=green.getProgress(); paletteB=blue.getProgress();
                     updatePreview(paletteR,paletteG,paletteB);
-                    applyRgb(paletteR,paletteG,paletteB);
+                    queueLiveRgb(mask,paletteR,paletteG,paletteB);
+                } else if(s==brightness) {
+                    if(manualMode==1) queueLiveRgb(mask,red.getProgress(),green.getProgress(),blue.getProgress());
+                    else applyWhiteToMask(mask);
+                } else if(s==whiteTemp){
+                    manualMode=0;
+                    applyWhiteToMask(mask);
                 }
-                else if(s==whiteTemp){ manualMode=0; applyWhite(); }
-                else if(s==brightness){ if(manualMode==1) applyRgb(red.getProgress(),green.getProgress(),blue.getProgress()); else applyWhite(); }
             }
+            public void onStartTrackingTouch(SeekBar s){}
+            public void onStopTrackingTouch(SeekBar s){}
         };
-        brightness.setOnSeekBarChangeListener(listener); whiteTemp.setOnSeekBarChangeListener(listener);
-        red.setOnSeekBarChangeListener(listener); green.setOnSeekBarChangeListener(listener); blue.setOnSeekBarChangeListener(listener);
+        brightness.setOnSeekBarChangeListener(listener);
+        whiteTemp.setOnSeekBarChangeListener(listener);
+        red.setOnSeekBarChangeListener(listener);
+        green.setOnSeekBarChangeListener(listener);
+        blue.setOnSeekBarChangeListener(listener);
     }
 
     private void setupColorPalette(){
         updatePreview(paletteR,paletteG,paletteB);
         colorPalette.setOnColorChangedListener((r,g,b)->{
-            paletteR=r; paletteG=g; paletteB=b;
-            red.setProgress(r); green.setProgress(g); blue.setProgress(b);
+            if(manualMode!=1) stopFx(false);
             manualMode=1;
+            paletteR=r; paletteG=g; paletteB=b;
+            slidersFromPalette=true;
+            red.setProgress(r); green.setProgress(g); blue.setProgress(b);
+            slidersFromPalette=false;
             updatePreview(r,g,b);
-            if(palettePending!=null) ui.removeCallbacks(palettePending);
-            final int rr=r, gg=g, bb=b, mask=selectedMask();
-            palettePending=()->{
-                stopFx(false);
-                cancelForMask(mask);
-                applyRgbToMask(mask,rr,gg,bb);
-            };
-            ui.postDelayed(palettePending,55);
+            queueLiveRgb(selectedMask(),r,g,b);
         });
     }
 
@@ -351,7 +373,8 @@ public class MainActivity extends Activity {
         if(currentFx!=null) fx.removeCallbacks(currentFx);
         currentFx=null;
         if(palettePending!=null){ ui.removeCallbacks(palettePending); palettePending=null; }
-        light1.cancelPending(); light2.cancelPending();
+        // Do not wipe unselected lamp queues when switching modes.
+        cancelForMask(selectedMask());
         if(announce) status.setText("Efekt zatrzymany");
     }
 
@@ -439,7 +462,7 @@ public class MainActivity extends Activity {
             if(token!=fxToken) return;
             // Prawdziwie ognisty preset: pomarańcz/czerwień z lekkim, nieregularnym migotaniem.
             int rVal=235+random.nextInt(21);
-            int gVal=55+random.nextInt(75);
+            int gVal=35+random.nextInt(65);
             int bVal=random.nextInt(18);
             if(random.nextInt(7)==0) gVal=Math.max(35,gVal-30);
             applyRgbToMask(mask,rVal,gVal,bVal);
@@ -448,6 +471,15 @@ public class MainActivity extends Activity {
     }
 
     private String targetLabel(int mask){ return mask==1?"Lampa 1":(mask==2?"Lampa 2":"Obie"); }
+
+    private void openUpdates(){
+        try {
+            Intent intent=new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/grbk420/YN360CONTROL/releases"));
+            startActivity(intent);
+        } catch(Exception e){
+            Toast.makeText(this,"Nie mogę otworzyć strony aktualizacji",Toast.LENGTH_SHORT).show();
+        }
+    }
 
     @Override protected void onDestroy(){ super.onDestroy(); stopFx(false); light1.disconnect(); light2.disconnect(); }
 }

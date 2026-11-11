@@ -10,6 +10,7 @@
     <application
         android:allowBackup="true"
         android:label="YN360 Control"
+        android:icon="@drawable/ic_yn360"
         android:theme="@style/AppTheme">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
