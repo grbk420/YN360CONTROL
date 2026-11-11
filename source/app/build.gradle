@@ -11,4 +11,25 @@ android {
         versionCode 7
         versionName '0.7'
     }
+
+    signingConfigs {
+        release {
+            def signingPath = System.getenv('YN360_KEYSTORE_PATH')
+            def signingPassword = System.getenv('YN360_SIGNING_PASSWORD')
+            if (signingPath && signingPassword) {
+                storeFile file(signingPath)
+                storePassword signingPassword
+                keyAlias 'yn360'
+                keyPassword signingPassword
+                storeType 'pkcs12'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
 }
