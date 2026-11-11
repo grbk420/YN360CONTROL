@@ -24,7 +24,19 @@ public class MainActivity extends Activity {
     private boolean slidersFromPalette=false;
     private int paletteR=255, paletteG=0, paletteB=0;
     private LampEffects lampEffects;
-    private TextView lamp1State,lamp2State,colorValue;
+    private TextView lamp1State,lamp2State,colorValue,timerStatus1,timerStatus2;
+    private Spinner timerDuration;
+    private final Handler timerUi=new Handler(Looper.getMainLooper());
+    private final int[] timerMinutes={5,15,30,60,120,240};
+    private final Runnable timerTick=new Runnable(){@Override public void run(){refreshTimers();timerUi.postDelayed(this,1000);}};
+    private boolean timerReceiverRegistered=false;
+    private final BroadcastReceiver timerReceiver=new BroadcastReceiver(){
+        @Override public void onReceive(Context context,Intent intent){
+            int expired=intent.getIntExtra("expired",0);
+            if(expired!=0){lampEffects.stop(expired); forMask(expired,BleLightController::off);}
+            refreshTimers();
+        }
+    };
     private RadioButton target1, target2, targetBoth;
     private int manualMode = 0; // 0 = white, 1 = RGB
     private SharedPreferences prefs;
@@ -46,6 +58,7 @@ public class MainActivity extends Activity {
         prefs=getSharedPreferences("yn360", MODE_PRIVATE);
         status=findViewById(R.id.status);
         lamp1State=findViewById(R.id.lamp1State); lamp2State=findViewById(R.id.lamp2State); colorValue=findViewById(R.id.colorValue);
+        timerStatus1=findViewById(R.id.timerStatus1); timerStatus2=findViewById(R.id.timerStatus2); timerDuration=findViewById(R.id.timerDuration);
         brightness=findViewById(R.id.brightness); brightnessCct=findViewById(R.id.brightnessCct); whiteTemp=findViewById(R.id.whiteTemp);
         red=findViewById(R.id.red); green=findViewById(R.id.green); blue=findViewById(R.id.blue);
         fxSpeed=findViewById(R.id.fxSpeed);
@@ -62,8 +75,21 @@ public class MainActivity extends Activity {
         findViewById(R.id.connect2).setOnClickListener(v->chooseVerifiedLamp(2));
         findViewById(R.id.identify1).setOnClickListener(v->identify(light1, "Lampa 1"));
         findViewById(R.id.identify2).setOnClickListener(v->identify(light2, "Lampa 2"));
-        findViewById(R.id.onBtn).setOnClickListener(v->{stopFx(false); manualMode=0; applyWhite();});
-        findViewById(R.id.offBtn).setOnClickListener(v->{stopFx(false); forMask(selectedMask(),BleLightController::off);});
+        findViewById(R.id.onBtn).setOnClickListener(v->{
+            int mask=selectedMask();
+            stopFx(false);
+            int connected=readyMask(mask);
+            forMask(mask,BleLightController::turnOn);
+            showPowerMessage("WŁĄCZ",mask,connected);
+        });
+        findViewById(R.id.offBtn).setOnClickListener(v->{
+            int mask=selectedMask();
+            stopFx(false);
+            cancelTimer(mask);
+            int connected=readyMask(mask);
+            forMask(mask,BleLightController::off);
+            showPowerMessage("WYŁĄCZ",mask,connected);
+        });
         findViewById(R.id.whiteBtn).setOnClickListener(v->{stopFx(false); manualMode=0; applyWhite();});
         findViewById(R.id.rgbBtn).setOnClickListener(v->{stopFx(false); manualMode=1; applyRgb(red.getProgress(),green.getProgress(),blue.getProgress());});
         findViewById(R.id.policeBtn).setOnClickListener(v->startPolice());
@@ -90,10 +116,93 @@ public class MainActivity extends Activity {
         setupColorPalette();
         setupTabs();
         setupQuickColors();
+        setupTimerControls();
         target1.setOnClickListener(v->onTargetChanged());
         target2.setOnClickListener(v->onTargetChanged());
         targetBoth.setOnClickListener(v->onTargetChanged());
         new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 900);
+    }
+
+    private int readyMask(int mask){
+        return ((mask&1)!=0&&light1.isReady()?1:0)|((mask&2)!=0&&light2.isReady()?2:0);
+    }
+    private void showPowerMessage(String action,int requested,int ready){
+        if(ready==0){
+            status.setText(action+": brak połączonej lampy. Połącz Bluetooth.");
+            Toast.makeText(this,"Brak połączonych lamp",Toast.LENGTH_SHORT).show();
+        }else{
+            status.setText(action+": komenda wysłana do "+targetLabel(ready)
+                +(ready==requested?"":" (pozostałe rozłączone)"));
+        }
+    }
+    private void setupTimerControls(){
+        String[] choices={"5 minut","15 minut","30 minut","1 godzina","2 godziny","4 godziny"};
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,choices);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        timerDuration.setAdapter(adapter);
+        timerDuration.setSelection(2);
+        findViewById(R.id.startTimerBtn).setOnClickListener(v->{
+            int mask=selectedMask();
+            int ready=readyMask(mask);
+            if(ready!=mask){
+                status.setText("Połącz najpierw wszystkie wybrane lampy");
+                Toast.makeText(this,"Wymagane połączenie obu wybranych lamp",Toast.LENGTH_LONG).show();
+                return;
+            }
+            long duration=timerMinutes[timerDuration.getSelectedItemPosition()]*60_000L;
+            Intent intent=new Intent(this,LampTimerService.class);
+            intent.setAction(LampTimerService.ACTION_SET);
+            intent.putExtra("mask",mask);
+            intent.putExtra("duration",duration);
+            try{
+                if(Build.VERSION.SDK_INT>=26)startForegroundService(intent);else startService(intent);
+                status.setText("Timer aktywny • "+targetLabel(mask));
+                timerUi.postDelayed(this::refreshTimers,350);
+            }catch(Exception ex){
+                status.setText("Nie można włączyć timera: "+ex.getClass().getSimpleName());
+            }
+        });
+        findViewById(R.id.cancelTimerBtn).setOnClickListener(v->{
+            cancelTimer(selectedMask());
+            status.setText("Anulowano timer • "+targetLabel(selectedMask()));
+        });
+        refreshTimers();
+    }
+    private void cancelTimer(int mask){
+        Intent intent=new Intent(this,LampTimerService.class);
+        intent.setAction(LampTimerService.ACTION_CANCEL);
+        intent.putExtra("mask",mask);
+        try{
+            // The service may already be active. startService updates it without
+            // forcing a new foreground service when no timer is running.
+            startService(intent);
+        }catch(Exception ignored){}
+        timerUi.postDelayed(this::refreshTimers,300);
+    }
+    private void refreshTimers(){
+        long now=System.currentTimeMillis();
+        TextView[] labels={timerStatus1,timerStatus2};
+        for(int i=0;i<2;i++){
+            long end=prefs.getLong("timer_end_"+(i+1),0L);
+            long remaining=Math.max(0L,end-now);
+            String value=remaining<=0?"brak odliczania":
+                String.format(java.util.Locale.getDefault(),"%02d:%02d:%02d",
+                    remaining/3600000L,(remaining/60000L)%60,(remaining/1000L)%60);
+            labels[i].setText("Lampa "+(i+1)+": "+value);
+        }
+    }
+    @Override protected void onStart(){
+        super.onStart();
+        IntentFilter filter=new IntentFilter(LampTimerService.ACTION_CHANGED);
+        if(Build.VERSION.SDK_INT>=33) registerReceiver(timerReceiver,filter,Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(timerReceiver,filter);
+        timerReceiverRegistered=true;
+        timerUi.post(timerTick);
+    }
+    @Override protected void onStop(){
+        timerUi.removeCallbacks(timerTick);
+        if(timerReceiverRegistered){unregisterReceiver(timerReceiver);timerReceiverRegistered=false;}
+        super.onStop();
     }
 
     private String shortMac(String mac){
