@@ -15,6 +15,10 @@
         android:label="YN360 Control"
         android:icon="@drawable/ic_yn360"
         android:theme="@style/AppTheme">
+        <service android:name=".EffectsForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice"
+            android:stopWithTask="false"/>
         <service android:name=".LampTimerService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice"
