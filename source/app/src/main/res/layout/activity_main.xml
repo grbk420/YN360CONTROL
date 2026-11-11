@@ -1,158 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:background="#080D19">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="18dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="YN360 CONTROL  •  v0.7"
-            android:textColor="#FFFFFF"
-            android:textSize="26sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/updatesBtn"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="SPRAWDŹ AKTUALIZACJE"
-            android:backgroundTint="#252048"
-            android:textColor="#FFFFFF" />
-
-        <TextView
-            android:id="@+id/status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="5dp"
-            android:paddingBottom="14dp"
-            android:text="Połącz lampy"
-            android:textColor="#AEB6C2" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="POŁĄCZENIE"
-            android:textColor="#9D7DFF"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <Button android:id="@+id/connect1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Lampa 1" />
-            <Button android:id="@+id/connect2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Lampa 2" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <Button android:id="@+id/identify1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="MIGNIJ 1" />
-            <Button android:id="@+id/identify2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="MIGNIJ 2" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="STERUJ"
-            android:textColor="#FF9A57"
-            android:textStyle="bold" />
-
-        <RadioGroup
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <RadioButton android:id="@+id/target1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lampa 1" android:textColor="#F5F7FA" />
-            <RadioButton android:id="@+id/target2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lampa 2" android:textColor="#F5F7FA" />
-            <RadioButton android:id="@+id/targetBoth" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Obie" android:textColor="#F5F7FA" android:checked="true" />
-        </RadioGroup>
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Jasność" android:textColor="#F5F7FA" android:textStyle="bold" />
-        <SeekBar android:id="@+id/brightness" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="210" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <Button android:id="@+id/onBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ON" />
-            <Button android:id="@+id/offBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="OFF" />
-            <Button android:id="@+id/whiteBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="BIAŁE" />
-        </LinearLayout>
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Biel: ciepła ↔ zimna" android:textColor="#F5F7FA" android:textStyle="bold" />
-        <SeekBar android:id="@+id/whiteTemp" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="135" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="KOLOR"
-            android:textColor="#FF9A57"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Przesuwaj palcem: kolor zmienia się od razu, bez zatwierdzania"
-            android:textColor="#AEB6C2"
-            android:textSize="13sp"
-            android:paddingBottom="8dp" />
-
-        <com.bongobrygada.yn360control.ColorPaletteView
-            android:id="@+id/colorPalette"
-            android:layout_width="match_parent"
-            android:layout_height="180dp" />
-
-        <View
-            android:id="@+id/colorPreview"
-            android:layout_width="match_parent"
-            android:layout_height="12dp"
-            android:layout_marginTop="8dp"
-            android:background="#FF0000" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="R" android:textColor="#D0D5DD" />
-        <SeekBar android:id="@+id/red" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="255" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="G" android:textColor="#D0D5DD" />
-        <SeekBar android:id="@+id/green" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="0" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="B" android:textColor="#D0D5DD" />
-        <SeekBar android:id="@+id/blue" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="0" />
-        <Button android:id="@+id/rgbBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="PONÓW RGB (opcjonalnie)" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="EFEKTY" android:textColor="#FF9A57" android:textStyle="bold" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Szybkość" android:textColor="#F5F7FA" android:textStyle="bold" />
-        <SeekBar android:id="@+id/fxSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="55" />
-
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <Button android:id="@+id/policeBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="POLICE" />
-            <Button android:id="@+id/discoBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="DISCO" />
-        </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <Button android:id="@+id/strobeBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="STROBE" />
-            <Button android:id="@+id/flashBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="FLASH" />
-        </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <Button android:id="@+id/fadeBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="COLOR FADE" />
-            <Button android:id="@+id/lightningBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="LIGHTNING" />
-        </LinearLayout>
-        <Button android:id="@+id/candleBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🔥 FIRE / CANDLE" />
-        <Button android:id="@+id/stopFxBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STOP EFEKTU" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="10dp"
-            android:paddingBottom="14dp"
-            android:text="Stroboskop i błyskawice mogą być niebezpieczne dla osób z nadwrażliwością na migające światło."
-            android:textColor="#7F8792"
-            android:textSize="12sp" />
-    </LinearLayout>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="#080C17">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+<LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✦ YN360 CONTROL" android:textSize="23sp" android:textColor="#F5F7FF" android:textStyle="bold" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STUDIO LIGHT  •  v0.8" android:textSize="11sp" android:textColor="#A778FF" android:textStyle="bold" android:letterSpacing="0.14"/>
+</LinearLayout>
+<Button android:id="@+id/updatesBtn" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="↻ Aktualizacje" android:textSize="12sp" android:textAllCaps="false" android:backgroundTint="#282043" android:textColor="#F5F7FF"/>
+</LinearLayout>
+<Space android:layout_width="1dp" android:layout_height="8dp"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Wybierz światło i steruj dokładnie tym, czego potrzebujesz." android:textSize="12sp" android:textColor="#9CA9C4"  />
+<Space android:layout_width="1dp" android:layout_height="14dp"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="TWOJE LAMPY" android:textSize="12sp" android:textColor="#A778FF" android:textStyle="bold" />
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"><LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_margin="4dp" android:background="@drawable/card_surface">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="LAMPA 1" android:textSize="14sp" android:textColor="#F5F7FF" android:textStyle="bold" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="○ ROZŁĄCZONA" android:textSize="11sp" android:textColor="#9CA9C4"  android:id="@+id/lamp1State" android:layout_marginTop="4dp" android:layout_marginBottom="6dp"/>
+<Button android:id="@+id/connect1" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="Połącz 1" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#322653" android:textColor="#F5F7FF" android:textSize="12sp"/>
+<Button android:id="@+id/identify1" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="Zidentyfikuj" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#243449" android:textColor="#F5F7FF" android:textSize="11sp"/>
+</LinearLayout><LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_margin="4dp" android:background="@drawable/card_surface">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="LAMPA 2" android:textSize="14sp" android:textColor="#F5F7FF" android:textStyle="bold" />
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="○ ROZŁĄCZONA" android:textSize="11sp" android:textColor="#9CA9C4"  android:id="@+id/lamp2State" android:layout_marginTop="4dp" android:layout_marginBottom="6dp"/>
+<Button android:id="@+id/connect2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="Połącz 2" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#322653" android:textColor="#F5F7FF" android:textSize="12sp"/>
+<Button android:id="@+id/identify2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="Zidentyfikuj" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#243449" android:textColor="#F5F7FF" android:textSize="11sp"/>
+</LinearLayout></LinearLayout>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Połącz lampy lub wybierz zapisane urządzenia" android:textSize="12sp" android:textColor="#9CA9C4"  android:id="@+id/status" android:layout_marginTop="4dp" android:layout_marginBottom="10dp"/>
+<RadioGroup android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/card_highlight">
+<RadioButton android:id="@+id/target1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Lampa 1" android:textColor="#F5F7FF" android:buttonTint="#A778FF" android:textSize="13sp"/>
+<RadioButton android:id="@+id/target2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Lampa 2" android:textColor="#F5F7FF" android:buttonTint="#A778FF" android:textSize="13sp"/>
+<RadioButton android:id="@+id/targetBoth" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Obie" android:textColor="#F5F7FF" android:buttonTint="#A778FF" android:textSize="13sp" android:checked="true"/>
+</RadioGroup>
+<Space android:layout_width="1dp" android:layout_height="12dp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp" android:background="@drawable/card_surface" ><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/onBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="Włącz" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#24564D" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/offBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="Wyłącz" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#562D43" android:textColor="#F5F7FF" /></LinearLayout></LinearLayout></LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/tabRgb" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="● RGB" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#6532C7" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/tabWhite" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="☼ CCT" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#252F46" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/tabFx" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="✧ Efekty" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#252F46" android:textColor="#F5F7FF" /></LinearLayout></LinearLayout>
+<Space android:layout_width="1dp" android:layout_height="12dp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp" android:background="@drawable/card_highlight" android:id="@+id/rgbSection"><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="PEŁNA PALETA RGB" android:textSize="15sp" android:textColor="#F5F7FF" android:textStyle="bold" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Przesuwaj palcem — kolor zmienia się na żywo" android:textSize="12sp" android:textColor="#9CA9C4"  /><Space android:layout_width="1dp" android:layout_height="10dp"/><com.bongobrygada.yn360control.ColorPaletteView android:id="@+id/colorPalette" android:layout_width="match_parent" android:layout_height="225dp"/><Space android:layout_width="1dp" android:layout_height="10dp"/><View android:id="@+id/colorPreview" android:layout_width="match_parent" android:layout_height="16dp" android:background="@drawable/color_preview" /><Space android:layout_width="1dp" android:layout_height="8dp"/><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="#FF0000 • RGB 255, 0, 0" android:textSize="12sp" android:textColor="#F5F7FF" android:textStyle="bold" android:id="@+id/colorValue"/><Space android:layout_width="1dp" android:layout_height="10dp"/><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="SZYBKIE KOLORY" android:textSize="12sp" android:textColor="#A778FF" android:textStyle="bold" /><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><Button android:id="@+id/quickRed" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:layout_margin="2dp" android:padding="0dp" android:minHeight="40dp" android:backgroundTint="#E3242C" android:text="" android:contentDescription="Szybki kolor" /><Button android:id="@+id/quickOrange" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:layout_margin="2dp" android:padding="0dp" android:minHeight="40dp" android:backgroundTint="#FF8200" android:text="" android:contentDescription="Szybki kolor" /><Button android:id="@+id/quickYellow" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:layout_margin="2dp" android:padding="0dp" android:minHeight="40dp" android:backgroundTint="#FFE522" android:text="" android:contentDescription="Szybki kolor" /><Button android:id="@+id/quickGreen" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:layout_margin="2dp" android:padding="0dp" android:minHeight="40dp" android:backgroundTint="#29C94D" android:text="" android:contentDescription="Szybki kolor" /><Button android:id="@+id/quickCyan" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:layout_margin="2dp" android:padding="0dp" android:minHeight="40dp" android:backgroundTint="#00CADA" android:text="" android:contentDescription="Szybki kolor" /><Button android:id="@+id/quickBlue" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:layout_margin="2dp" android:padding="0dp" android:minHeight="40dp" android:backgroundTint="#175DDF" android:text="" android:contentDescription="Szybki kolor" /><Button android:id="@+id/quickPink" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:layout_margin="2dp" android:padding="0dp" android:minHeight="40dp" android:backgroundTint="#D92DDD" android:text="" android:contentDescription="Szybki kolor" /></LinearLayout><Space android:layout_width="1dp" android:layout_height="10dp"/><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Jasność" android:textSize="13sp" android:textColor="#F5F7FF" android:textStyle="bold" /><SeekBar android:id="@+id/brightness" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="210" android:progressTint="#A778FF" android:thumbTint="#D1B5FF"/><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Precyzyjny RGB" android:textSize="12sp" android:textColor="#9CA9C4"  /><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="R" android:textSize="12sp" android:textColor="#FF667B"  /><SeekBar android:id="@+id/red" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="255" android:progressTint="#A778FF" android:thumbTint="#D1B5FF"/></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="G" android:textSize="12sp" android:textColor="#54DFA0"  /><SeekBar android:id="@+id/green" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="0" android:progressTint="#A778FF" android:thumbTint="#D1B5FF"/></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="B" android:textSize="12sp" android:textColor="#68A8FF"  /><SeekBar android:id="@+id/blue" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="0" android:progressTint="#A778FF" android:thumbTint="#D1B5FF"/></LinearLayout></LinearLayout><Button android:id="@+id/rgbBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="Zastosuj aktualny kolor" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#49318C" android:textColor="#F5F7FF" /></LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp" android:background="@drawable/card_highlight" android:id="@+id/whiteSection" android:visibility="gone"><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CCT • ŚWIATŁO BIAŁE" android:textSize="16sp" android:textColor="#F5F7FF" android:textStyle="bold" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Od ciepłego do chłodnego" android:textSize="12sp" android:textColor="#9CA9C4"  /><Space android:layout_width="1dp" android:layout_height="12dp"/><SeekBar android:id="@+id/whiteTemp" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="135" android:progressTint="#A778FF" android:thumbTint="#D1B5FF"/><Space android:layout_width="1dp" android:layout_height="6dp"/><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Jasność białego światła" android:textSize="13sp" android:textColor="#F5F7FF" android:textStyle="bold" /><SeekBar android:id="@+id/brightnessCct" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="210" android:progressTint="#A778FF" android:thumbTint="#D1B5FF"/><Button android:id="@+id/whiteBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="Ustaw białe światło" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#49318C" android:textColor="#F5F7FF" /></LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="12dp" android:background="@drawable/card_surface" android:id="@+id/fxSection" android:visibility="gone"><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="EFEKTY ŚWIETLNE" android:textSize="16sp" android:textColor="#F5F7FF" android:textStyle="bold" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Wybierz lampę lub obie • szybkość można regulować" android:textSize="12sp" android:textColor="#9CA9C4"  /><Space android:layout_width="1dp" android:layout_height="8dp"/><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Szybkość efektów" android:textSize="13sp" android:textColor="#F5F7FF" android:textStyle="bold" /><SeekBar android:id="@+id/fxSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="45" android:progressTint="#A778FF" android:thumbTint="#D1B5FF"/><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/policeBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="🚓 Police" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/discoBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="✦ Disco" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout></LinearLayout><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/strobeBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="⚡ Strobe" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/flashBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="✴ Flash" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout></LinearLayout><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/fadeBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="◉ Color Fade" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/lightningBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="☇ Lightning" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout></LinearLayout><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/candleBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="🔥 Fire Candle" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/pulseBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="♥ Pulse" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout></LinearLayout><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/oceanBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="≈ Ocean" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/sunsetBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="☀ Sunset" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout></LinearLayout><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/tvBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="▣ TV Flicker" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><Button android:id="@+id/neonBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="✧ Neon" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#26213F" android:textColor="#F5F7FF" /></LinearLayout></LinearLayout><Button android:id="@+id/stopFxBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="■ Zatrzymaj efekt" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#5B233E" android:textColor="#F5F7FF" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Uwaga: Strobe, Flash i Lightning mogą wywołać reakcje u osób wrażliwych na migające światło." android:textSize="11sp" android:textColor="#9CA9C4"  android:paddingTop="7dp"/></LinearLayout>
+<Space android:layout_width="1dp" android:layout_height="18dp"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="YN360 CONTROL  •  Projekt BongoBrygada" android:textSize="11sp" android:textColor="#65718D"  android:gravity="center"/>
+<Space android:layout_width="1dp" android:layout_height="12dp"/>
+</LinearLayout>
 </ScrollView>
