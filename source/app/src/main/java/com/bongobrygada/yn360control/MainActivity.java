@@ -38,7 +38,8 @@ public class MainActivity extends Activity {
             refreshTimers();
         }
     };
-    private RadioButton target1, target2, targetBoth;
+    private Button target1, target2, targetBoth;
+    private int selectedTargetMask=1;
     private int manualMode = 0; // 0 = white, 1 = RGB
     private int activeTab=0;
     private CheckBox cctRgbFallback2;
@@ -121,6 +122,9 @@ public class MainActivity extends Activity {
         findViewById(R.id.pulseBtn).setOnClickListener(v->startScene(LampEffects.Kind.PULSE,"PULSE"));
         findViewById(R.id.tvBtn).setOnClickListener(v->startScene(LampEffects.Kind.TV,"TV"));
         findViewById(R.id.neonBtn).setOnClickListener(v->startScene(LampEffects.Kind.NEON,"NEON"));
+        findViewById(R.id.auroraBtn).setOnClickListener(v->startScene(LampEffects.Kind.AURORA,"AURORA FLOW"));
+        findViewById(R.id.breatheBtn).setOnClickListener(v->startScene(LampEffects.Kind.BREATHING,"SOFT BREATH"));
+        findViewById(R.id.sleepBtn).setOnClickListener(v->startScene(LampEffects.Kind.SLEEP,"SLEEP • 15 MIN"));
         fxSpeed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
           public void onProgressChanged(SeekBar s,int p,boolean fromUser){if(fromUser) lampEffects.changeSpeed(p);}
           public void onStartTrackingTouch(SeekBar s){}
@@ -136,12 +140,10 @@ public class MainActivity extends Activity {
         setupDiagnostics2();
         setupQuickColors();
         setupTimerControls();
-        target1.setOnClickListener(v->onTargetChanged());
-        target2.setOnClickListener(v->onTargetChanged());
-        targetBoth.setOnClickListener(v->onTargetChanged());
-        int savedTarget=prefs.getInt("target_mask",1);
-        if(savedTarget==2) target2.setChecked(true); else if(savedTarget==3) targetBoth.setChecked(true); else target1.setChecked(true);
-        refreshTargetLabel();
+        target1.setOnClickListener(v->selectTarget(1));
+        target2.setOnClickListener(v->selectTarget(2));
+        targetBoth.setOnClickListener(v->selectTarget(3));
+        selectTarget(prefs.getInt("target_mask",1));
         setupCollapsibleSections();
         new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 900);
     }
@@ -282,10 +284,10 @@ public class MainActivity extends Activity {
     private void updateButtons(){
         String m1=prefs.getString(PREF_L1,null), m2=prefs.getString(PREF_L2,null);
         String n1=prefs.getString(PREF_L1_NAME,"YN360"), n2=prefs.getString(PREF_L2_NAME,"YN360");
-        ((Button)findViewById(R.id.connect1)).setText(light1.isReady()?"Lampa 1 ✓  "+n1:(m1!=null?"Lampa 1 • "+n1+" • "+shortMac(m1):"Lampa 1"));
-        ((Button)findViewById(R.id.connect2)).setText(light2.isReady()?"Lampa 2 ✓  "+n2:(m2!=null?"Lampa 2 • "+n2+" • "+shortMac(m2):"Lampa 2"));
-        lamp1State.setText(light1.isReady()?"● POŁĄCZONA":(m1!=null?"◌ ZAPISANA":"○ ROZŁĄCZONA"));
-        lamp2State.setText(light2.isReady()?"● POŁĄCZONA":(m2!=null?"◌ ZAPISANA":"○ ROZŁĄCZONA"));
+        ((Button)findViewById(R.id.connect1)).setText(m1==null?"Połącz":"Zmień");
+        ((Button)findViewById(R.id.connect2)).setText(m2==null?"Połącz":"Zmień");
+        lamp1State.setText(light1.isReady()?"● Połączona • "+n1:(m1!=null?"◌ Zapamiętana":"○ Rozłączona"));
+        lamp2State.setText(light2.isReady()?"● Połączona • "+n2:(m2!=null?"◌ Zapamiętana":"○ Rozłączona"));
         lamp1State.setTextColor(android.graphics.Color.parseColor(light1.isReady()?"#41E7A8":"#9CA9C4"));
         lamp2State.setTextColor(android.graphics.Color.parseColor(light2.isReady()?"#41E7A8":"#9CA9C4"));
     }
@@ -575,7 +577,7 @@ public class MainActivity extends Activity {
             },500);
         });
         findViewById(R.id.diagCopy2).setOnClickListener(v->{
-            String report="YN360 Control FINAL v1.0 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
+            String report="YN360 Control v1.1 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
             android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(android.content.ClipData.newPlainText("YN360 diagnostyka L2",report));
             Toast.makeText(this,"Skopiowano diagnostykę Lampy 2",Toast.LENGTH_SHORT).show();
@@ -660,28 +662,28 @@ public class MainActivity extends Activity {
         if(colorValue!=null) colorValue.setText(String.format(java.util.Locale.US,"#%02X%02X%02X • RGB %d, %d, %d",r,g,b,r,g,b));
     }
 
-    private void onTargetChanged(){
-        prefs.edit().putInt("target_mask",selectedMask()).apply();
+    /** Switching the target never sends a light command or interrupts the other lamp. */
+    private void selectTarget(int mask){
+        selectedTargetMask=mask==2?2:mask==3?3:1;
+        prefs.edit().putInt("target_mask",selectedTargetMask).apply();
+        int active=android.graphics.Color.parseColor("#7545D6");
+        int normal=android.graphics.Color.parseColor("#222D47");
+        Button[] tabs={target1,target2,targetBoth};
+        for(int i=0;i<tabs.length;i++){
+            boolean chosen=(i==0&&selectedTargetMask==1)
+                ||(i==1&&selectedTargetMask==2)||(i==2&&selectedTargetMask==3);
+            tabs[i].setBackgroundTintList(android.content.res.ColorStateList.valueOf(chosen?active:normal));
+            tabs[i].setTextColor(android.graphics.Color.parseColor(chosen?"#FFFFFF":"#B8C5E0"));
+            tabs[i].setSelected(chosen);
+        }
         refreshTargetLabel();
         if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
-        int mask=selectedMask();
-        if(activeTab==1) {
-            // Selecting Lampa 2 while CCT is already visible must activate CCT on Lampa 2.
-            applySelectedMode(1);
-        } else if(activeTab==0) {
-            applySelectedMode(0);
-        } else {
-            status.setText("Sterowanie: "+targetLabel(mask));
-        }
+        status.setText("Sterowanie: "+targetLabel(selectedTargetMask)+" • bez zmiany ustawień lamp");
     }
 
     private interface Action { void run(BleLightController l); }
 
-    private int selectedMask(){
-        if(target1.isChecked()) return 1;
-        if(target2.isChecked()) return 2;
-        return 3;
-    }
+    private int selectedMask(){ return selectedTargetMask; }
 
     private void forMask(int mask, Action a){
         if((mask&1)!=0 && light1.isReady()) a.run(light1);

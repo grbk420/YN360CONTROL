@@ -3,6 +3,7 @@ package com.bongobrygada.yn360control;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import java.util.HashSet;
 import java.util.Random;
 
@@ -14,7 +15,7 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, IDENTIFY
     }
 
     private final BleLightController[] lamps;
@@ -82,6 +83,7 @@ public final class LampEffects {
         int step=0;
         int burst=0;
         float hue=0f;
+        final long startedAt=SystemClock.uptimeMillis();
 
         Session(Kind k,int m,int b,int s,int r,int g,int bl) {
             kind=k; mask=m; brightness=clamp(b,0,255);
@@ -116,7 +118,7 @@ public final class LampEffects {
                     // RGB lit/black frames work over the same established command.
                     boolean lit=(step++ % 2)==0;
                     rgb(mask,lit?255:0,lit?255:0,lit?255:0);
-                    delay=pace(speed,550,210);
+                    delay=pace(speed,540,150); // About 3.3 complete flashes/second max over current BLE queue
                     break;
                 }
                 case FLASH: {
@@ -147,7 +149,7 @@ public final class LampEffects {
                     break;
                 }
                 case FADE: {
-                    hue=(hue+4f)%360;
+                    hue=(hue+2f)%360; // smaller increments for smoother transitions
                     int c=Color.HSVToColor(new float[]{hue,.95f,1f});
                     rgb(mask,Color.red(c),Color.green(c),Color.blue(c));
                     delay=pace(speed,270,150);
@@ -207,6 +209,40 @@ public final class LampEffects {
                     float wave=(float)((Math.sin(step++*.12)+1)*.5);
                     rgb(mask,(int)(40+215*wave),(int)(210-170*wave),255);
                     delay=pace(speed,370,195);
+                    break;
+                }
+                case AURORA: {
+                    // Slowly flowing cyan / indigo / violet, no hard colour jumps.
+                    double phase=step++*.047;
+                    int rr=(int)(50+53*(1+Math.sin(phase))*.5);
+                    int gg=(int)(50+110*(1+Math.sin(phase+.9))*.5);
+                    int bb=(int)(115+125*(1+Math.sin(phase+2.1))*.5);
+                    rgb(mask,rr,gg,bb);
+                    delay=pace(speed,360,195);
+                    break;
+                }
+                case BREATHING: {
+                    // Warm, extremely gentle breathing light, approximately 12-second cycles.
+                    double wave=(Math.sin(step++*.105-Math.PI/2)+1d)*.5d;
+                    float strength=(float)(.10+.55*wave);
+                    rgb(mask,Math.round(238*strength),Math.round(110*strength),Math.round(42*strength));
+                    delay=pace(speed,310,200);
+                    break;
+                }
+                case SLEEP: {
+                    // 15-minute fading amber light. Finishes with OFF only for session-owned lamps.
+                    long elapsed=SystemClock.uptimeMillis()-startedAt;
+                    if(elapsed>=900000L){
+                        for(int i=0;i<2;i++)if(owner[i]==this){
+                            owner[i]=null;
+                            if(lamps[i].isReady())lamps[i].off();
+                        }
+                        mask=0;return;
+                    }
+                    float left=Math.max(0f,1f-elapsed/900000f);
+                    float level=left*left;
+                    rgb(mask,Math.round(96*level),Math.round(28*level),Math.round(7*level));
+                    delay=1100;
                     break;
                 }
                 default: return;
