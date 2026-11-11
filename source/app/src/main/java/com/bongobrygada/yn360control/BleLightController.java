@@ -14,7 +14,13 @@ public class BleLightController {
     private final Context context;
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic send;
-    private boolean ready = false;
+    private volatile boolean ready = false;
+    private volatile int acceptedWrites=0;
+    private volatile int ackWrites=0;
+    private volatile int failedWrites=0;
+    private volatile int lastGattStatus=-1;
+    private volatile String lastCommand="—";
+    private volatile String lastConnection="Rozłączona";
     private final Listener listener;
     private final Handler io = new Handler(Looper.getMainLooper());
     private final ArrayDeque<byte[]> queue = new ArrayDeque<>();
@@ -30,6 +36,12 @@ public class BleLightController {
     public interface Listener { void onState(String state); }
     public BleLightController(Context c, Listener l) { context = c; listener = l; }
     public boolean isReady(){ return ready; }
+    public String debugSnapshot(){
+        String address=deviceAddress==null?"nieprzypisana":deviceAddress.substring(Math.max(0,deviceAddress.length()-8));
+        return (ready?"GOTOWA":"NIEPOŁĄCZONA")+" • "+address+"\n"
+            +"BLE przyjęte: "+acceptedWrites+"  ACK: "+ackWrites+"  błędy: "+failedWrites
+            +"\nOstatnia komenda: "+lastCommand+" • GATT: "+lastGattStatus+"\n"+lastConnection;
+    }
 
     @SuppressWarnings("MissingPermission")
     public void connect(BluetoothDevice device) {
@@ -45,6 +57,7 @@ public class BleLightController {
                    ((previous[1]&0xFF)==0xA1||(previous[1]&0xFF)==0xAA)) lastLitPacket=previous;
             }catch(Exception ignored){}
         }
+        lastConnection="Łączenie";
         listener.onState("Łączenie: " + safeName(device));
         gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE);
     }
@@ -53,6 +66,7 @@ public class BleLightController {
     public synchronized void disconnect(){
         generation++;
         ready = false; send = null; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++;
+        lastConnection="Rozłączona";
         if(gatt != null){ try{gatt.disconnect();}catch(Exception ignored){} try{gatt.close();}catch(Exception ignored){} gatt = null; }
     }
 
@@ -68,8 +82,20 @@ public class BleLightController {
 
     private final BluetoothGattCallback callback = new BluetoothGattCallback() {
         @Override public void onConnectionStateChange(BluetoothGatt g, int status, int newState) {
-            if(status==BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED){ listener.onState("Połączono, wykrywam usługę…"); g.discoverServices(); }
-            else if(newState == BluetoothProfile.STATE_DISCONNECTED){ synchronized(BleLightController.this){ if(g!=gatt) return; ready=false; send=null; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++; generation++; } listener.onState("Rozłączono"); }
+            if(g!=gatt)return;
+            lastGattStatus=status;
+            if(status==BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
+                lastConnection="Połączona, szukam kanału sterowania";
+                listener.onState("Połączono, wykrywam usługę…");
+                g.discoverServices();
+            } else if(newState==BluetoothProfile.STATE_DISCONNECTED || status!=BluetoothGatt.GATT_SUCCESS){
+                synchronized(BleLightController.this){
+                    if(g!=gatt)return;
+                    ready=false;send=null;queue.clear();priorityQueue.clear();writing=false;inFlightId++;generation++;
+                }
+                lastConnection="Rozłączona (GATT "+status+")";
+                listener.onState(lastConnection);
+            }
         }
         @Override public void onServicesDiscovered(BluetoothGatt g, int status){
             if(g!=gatt || status!=BluetoothGatt.GATT_SUCCESS){listener.onState("Błąd wykrywania usług");return;}
@@ -77,13 +103,20 @@ public class BleLightController {
             if(s==null){ listener.onState("Nie znaleziono usługi YN360"); return; }
             send=s.getCharacteristic(SEND_UUID);
             if(send==null){ listener.onState("Nie znaleziono kanału sterowania"); return; }
-            ready=true; listener.onState("Gotowa ✓");
+            ready=true;lastConnection="Gotowa, kanał GATT znaleziony";listener.onState("Gotowa ✓");
         }
         @Override public void onCharacteristicWrite(BluetoothGatt g, BluetoothGattCharacteristic c, int status){
             final int ticket;
             synchronized(BleLightController.this){
                 if(g!=gatt || !writing || inFlightNoResponse)return;
                 ticket=inFlightId;
+                lastGattStatus=status;
+                if(status==BluetoothGatt.GATT_SUCCESS)ackWrites++;
+                else{
+                    failedWrites++;
+                    lastConnection="Błąd zapisu GATT "+status;
+                    listener.onState(lastConnection);
+                }
             }
             io.postDelayed(()->finishWrite(ticket),60);
         }
@@ -116,6 +149,7 @@ public class BleLightController {
     private synchronized void drain(){
         if(writing || !ready || gatt==null || send==null || (queue.isEmpty() && priorityQueue.isEmpty())) return;
         byte[] data=priorityQueue.isEmpty()?queue.pollFirst():priorityQueue.pollFirst();
+        lastCommand=String.format(java.util.Locale.US,"%02X",data[1]&255);
         int props=send.getProperties();
         boolean noResponse=(props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0;
         int type=noResponse?BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE:BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
@@ -133,11 +167,14 @@ public class BleLightController {
             }
         }catch(Exception ignored){}
         if(!accepted){
+            failedWrites++;
+            lastConnection="Android odmówił zapisu";
             writing=false;
             if(retryFailures++<5)priorityQueue.offerFirst(data);
             io.postDelayed(this::drain,180);
             return;
         }
+        acceptedWrites++;
         if(noResponse){
             // No-response writes have no guaranteed completion callback.
             io.postDelayed(()->finishWrite(ticket),145);
