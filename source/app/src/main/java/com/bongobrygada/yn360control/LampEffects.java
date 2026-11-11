@@ -15,7 +15,7 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, IDENTIFY
     }
 
     private final BleLightController[] lamps;
@@ -243,6 +243,48 @@ public final class LampEffects {
                     float level=left*left;
                     rgb(mask,Math.round(96*level),Math.round(28*level),Math.round(7*level));
                     delay=1100;
+                    break;
+                }
+                case DREAM: {
+                    double p=step++*.037;
+                    rgb(mask,49+(int)(33*(1+Math.sin(p))*.5),
+                        24+(int)(24*(1+Math.sin(p+1.6))*.5),
+                        86+(int)(51*(1+Math.sin(p+2.7))*.5));
+                    delay=pace(speed,430,235);
+                    break;
+                }
+                case MOONLIGHT: {
+                    double p=step++*.035;
+                    double swell=(1+Math.sin(p))*.5;
+                    rgb(mask,4+(int)(3*swell),9+(int)(8*swell),30+(int)(24*swell));
+                    delay=pace(speed,530,270);
+                    break;
+                }
+                case LAVA: {
+                    double p=step++*.063;
+                    double lava=(1+Math.sin(p))*.5;
+                    rgb(mask,130+(int)(70*lava),16+(int)(76*lava),3+(int)(7*lava));
+                    delay=pace(speed,470,230);
+                    break;
+                }
+                case FOREST: {
+                    double p=step++*.044;
+                    double greenWave=(1+Math.sin(p))*.5;
+                    double cyanWave=(1+Math.sin(p+1.6))*.5;
+                    rgb(mask,7+(int)(8*cyanWave),54+(int)(90*greenWave),
+                        22+(int)(48*cyanWave));
+                    delay=pace(speed,490,260);
+                    break;
+                }
+                case DUO_WAVE: {
+                    hue=(hue+1.7f)%360f;
+                    int a=Color.HSVToColor(new float[]{hue,.82f,.8f});
+                    int b=Color.HSVToColor(new float[]{(hue+180f)%360f,.82f,.8f});
+                    if((mask&3)==3){
+                        rgb(1,Color.red(a),Color.green(a),Color.blue(a));
+                        rgb(2,Color.red(b),Color.green(b),Color.blue(b));
+                    }else rgb(mask,Color.red(a),Color.green(a),Color.blue(a));
+                    delay=pace(speed,390,220);
                     break;
                 }
                 default: return;
