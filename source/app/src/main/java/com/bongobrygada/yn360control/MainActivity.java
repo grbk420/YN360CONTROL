@@ -24,6 +24,12 @@ public class MainActivity extends Activity {
     private boolean slidersFromPalette=false;
     private int paletteR=255, paletteG=0, paletteB=0;
     private LampEffects lampEffects;
+    private LightingSession lightingSession;
+    private final LightingSession.Observer lightingObserver=(index,state)->runOnUiThread(()->{
+        if(status!=null)status.setText("L"+index+": "+state);
+        if(light1!=null && light2!=null)updateButtons();
+        if(index==2 && diagResults2!=null)showDiag2();
+    });
     private TextView lamp1State,lamp2State,colorValue,timerStatus1,timerStatus2,selectedTarget;
     private View timerBody, diagnosticsBody;
     private Spinner timerDuration;
@@ -83,14 +89,12 @@ public class MainActivity extends Activity {
         cctChannel2=findViewById(R.id.cctChannel2);
 
         BluetoothManager bm=(BluetoothManager)getSystemService(BLUETOOTH_SERVICE); adapter=bm.getAdapter();
-        light1=new BleLightController(this, s->runOnUiThread(()->{status.setText("L1: "+s); updateButtons();}));
-        light2=new BleLightController(this, s->runOnUiThread(()->{
-            status.setText("L2: "+s);
-            updateButtons();
-            if(diagResults2!=null) showDiag2();
-        }));
+        lightingSession=LightingSession.get(getApplicationContext());
+        light1=lightingSession.first;
+        light2=lightingSession.second;
+        lampEffects=lightingSession.effects;
         light2.setWhiteChannel(prefs.getInt("cct_channel_2",1));
-        lampEffects=new LampEffects(light1,light2);
+        lightingSession.attach(lightingObserver);
 
         findViewById(R.id.updatesBtn).setOnClickListener(v->openUpdates());
         findViewById(R.id.connect1).setOnClickListener(v->chooseVerifiedLamp(1));
@@ -131,6 +135,11 @@ public class MainActivity extends Activity {
         findViewById(R.id.pulseBtn).setOnClickListener(v->startScene(LampEffects.Kind.PULSE,"PULSE"));
         findViewById(R.id.tvBtn).setOnClickListener(v->startScene(LampEffects.Kind.TV,"TV"));
         findViewById(R.id.neonBtn).setOnClickListener(v->startScene(LampEffects.Kind.NEON,"NEON"));
+        findViewById(R.id.dreamBtn).setOnClickListener(v->startScene(LampEffects.Kind.DREAM,"DREAM"));
+        findViewById(R.id.moonlightBtn).setOnClickListener(v->startScene(LampEffects.Kind.MOONLIGHT,"MOONLIGHT"));
+        findViewById(R.id.lavaBtn).setOnClickListener(v->startScene(LampEffects.Kind.LAVA,"LAVA FLOW"));
+        findViewById(R.id.forestBtn).setOnClickListener(v->startScene(LampEffects.Kind.FOREST,"FOREST"));
+        findViewById(R.id.duoWaveBtn).setOnClickListener(v->startScene(LampEffects.Kind.DUO_WAVE,"DUO WAVE"));
         findViewById(R.id.auroraBtn).setOnClickListener(v->startScene(LampEffects.Kind.AURORA,"AURORA FLOW"));
         findViewById(R.id.breatheBtn).setOnClickListener(v->startScene(LampEffects.Kind.BREATHING,"SOFT BREATH"));
         findViewById(R.id.sleepBtn).setOnClickListener(v->startScene(LampEffects.Kind.SLEEP,"SLEEP • 15 MIN"));
@@ -327,8 +336,8 @@ public class MainActivity extends Activity {
     private void autoReconnectSaved(){
         if(!hasBtPermissions() || adapter==null || !adapter.isEnabled()) return;
         String m1=prefs.getString(PREF_L1,null), m2=prefs.getString(PREF_L2,null);
-        try { if(m1!=null) light1.connect(adapter.getRemoteDevice(m1)); } catch(Exception ignored){}
-        try { if(m2!=null && !m2.equals(m1)) light2.connect(adapter.getRemoteDevice(m2));
+        try { if(m1!=null && !light1.isReady()) light1.connect(adapter.getRemoteDevice(m1)); } catch(Exception ignored){}
+        try { if(m2!=null && !m2.equals(m1) && !light2.isReady()) light2.connect(adapter.getRemoteDevice(m2));
             else if(m2!=null) status.setText("Te same adresy BLE dla obu lamp. Wybierz osobne urządzenia.");
         } catch(Exception ignored){}
     }
@@ -599,7 +608,7 @@ public class MainActivity extends Activity {
             },500);
         });
         findViewById(R.id.diagCopy2).setOnClickListener(v->{
-            String report="YN360 Control v1.2 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
+            String report="YN360 Control v1.3 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
             android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(android.content.ClipData.newPlainText("YN360 diagnostyka L2",report));
             Toast.makeText(this,"Skopiowano diagnostykę Lampy 2",Toast.LENGTH_SHORT).show();
@@ -786,7 +795,24 @@ public class MainActivity extends Activity {
     private void stopFx(boolean announce) {
         if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
         lampEffects.stop(selectedMask());
+        if(!lightingSession.hasRunningScenes()){
+            try{stopService(new Intent(this,EffectsForegroundService.class));}catch(Exception ignored){}
+        }
         if(announce) status.setText("Zatrzymano • "+targetLabel(selectedMask()));
+    }
+    private boolean ensureEffectsForeground(){
+        if(!lightingSession.hasRunningScenes())return false;
+        Intent intent=new Intent(this,EffectsForegroundService.class);
+        intent.setAction(EffectsForegroundService.ACTION_KEEP);
+        try{
+            if(Build.VERSION.SDK_INT>=26)startForegroundService(intent);else startService(intent);
+            return true;
+        }catch(Exception failure){
+            lampEffects.stop(3);
+            status.setText("Usługa efektów w tle niedostępna: "+failure.getClass().getSimpleName());
+            Toast.makeText(this,"Nie można uruchomić efektu w tle",Toast.LENGTH_LONG).show();
+            return false;
+        }
     }
     private void startScene(LampEffects.Kind kind,String name) {
         if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
@@ -795,7 +821,9 @@ public class MainActivity extends Activity {
         if(allowed==0){status.setText("Najpierw naciśnij Włącz • scena nie uruchomiona");return;}
         int actual=lampEffects.start(kind,allowed,brightness.getProgress(),fxSpeed.getProgress(),red.getProgress(),green.getProgress(),blue.getProgress());
         if(actual==0){status.setText("Połącz wybraną lampę przez Bluetooth");Toast.makeText(this,"Brak połączenia",Toast.LENGTH_SHORT).show();}
-        else status.setText(name+" • "+targetLabel(actual)+(actual==mask?"":" (podłączone)"));
+        else if(ensureEffectsForeground()){
+            status.setText(name+" • "+targetLabel(actual)+" • działa w tle");
+        }
     }
     private void startPolice(){startScene(LampEffects.Kind.POLICE,"POLICE");}
     private void startDisco(){startScene(LampEffects.Kind.DISCO,"DISCO");}
@@ -816,5 +844,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override protected void onDestroy(){ super.onDestroy(); if(palettePending!=null) ui.removeCallbacks(palettePending); lampEffects.close(); light1.disconnect(); light2.disconnect(); }
+    @Override protected void onDestroy(){
+        if(palettePending!=null)ui.removeCallbacks(palettePending);
+        lightingSession.detach(lightingObserver);
+        if(!lightingSession.hasRunningScenes()){
+            light1.disconnect();
+            light2.disconnect();
+        }
+        super.onDestroy();
+    }
 }
