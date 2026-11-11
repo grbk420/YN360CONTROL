@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v1.1-final
+          name: YN360-Control-v1.2-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish FINAL v1.1 APK
+      - name: Publish FINAL v1.2 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.1.apk
-          if gh release view v1.1.0 >/dev/null 2>&1; then
-            gh release upload v1.1.0 YN360-Control-v1.1.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.2.apk
+          if gh release view v1.2.0 >/dev/null 2>&1; then
+            gh release upload v1.2.0 YN360-Control-v1.2.apk --clobber
           else
-            gh release create v1.1.0 YN360-Control-v1.1.apk \
-              --title "YN360 Control FINAL v1.1" \
-              --notes "Kompaktowe karty BLE, segmentowy przełącznik Lampa 1 / Lampa 2 / Obie bez niechcianych poleceń, Aurora Flow, Soft Breath, 15-minutowy Sleep, szybszy strobe do ograniczeń BLE. Zachowano podpis i identyfikator aplikacji. Wymaga testu z fizycznymi lampami."
+            gh release create v1.2.0 YN360-Control-v1.2.apk \
+              --title "YN360 Control FINAL v1.2" \
+              --notes "Poprawiona paleta: gest pionowy przewija ekran, dotyk i gest poziomy wybieraja kolor. Wybieranie barw i efektow nie wlacza lamp. Swiatlo reaguje dopiero po recznym Wlacz; dla obu lamp osobno. Komendy sa blokowane po Wylacz i po ponownym uruchomieniu aplikacji. Zachowano dotychczasowy podpis APK i polaczenia BLE."
           fi
