@@ -26,6 +26,13 @@ public class ColorPaletteView extends View {
     }
 
     public void setOnColorChangedListener(OnColorChangedListener l){ listener=l; }
+    public void setColor(int r,int g,int b){
+        float[] hsv=new float[3];
+        Color.RGBToHSV(r,g,b,hsv);
+        hue=hsv[0];
+        saturation=hsv[1];
+        invalidate();
+    }
 
     @Override protected void onDraw(Canvas canvas){
         super.onDraw(canvas);
@@ -35,9 +42,10 @@ public class ColorPaletteView extends View {
             Color.RED, Color.YELLOW, Color.GREEN, Color.CYAN,
             Color.BLUE, Color.MAGENTA, Color.RED
         };
-        Shader hueShader=new LinearGradient(0,0,w,0,colors,null,Shader.TileMode.CLAMP);
-        Shader satShader=new LinearGradient(0,0,0,h,Color.WHITE,Color.TRANSPARENT,Shader.TileMode.CLAMP);
-        paint.setShader(new ComposeShader(hueShader,satShader,PorterDuff.Mode.SCREEN));
+        // A true rainbow under a vertical white-to-transparent saturation overlay.
+        paint.setShader(new LinearGradient(0,0,w,0,colors,null,Shader.TileMode.CLAMP));
+        canvas.drawRoundRect(0,0,w,h,22f,22f,paint);
+        paint.setShader(new LinearGradient(0,0,0,h,Color.WHITE,Color.TRANSPARENT,Shader.TileMode.CLAMP));
         canvas.drawRoundRect(0,0,w,h,22f,22f,paint);
         paint.setShader(null);
 
@@ -50,13 +58,22 @@ public class ColorPaletteView extends View {
     }
 
     @Override public boolean onTouchEvent(MotionEvent e){
-        if(e.getAction()!=MotionEvent.ACTION_DOWN && e.getAction()!=MotionEvent.ACTION_MOVE && e.getAction()!=MotionEvent.ACTION_UP) return true;
+        int action=e.getActionMasked();
+        if(action==MotionEvent.ACTION_DOWN){
+            // Don't allow the outer ScrollView to steal horizontal or vertical dragging.
+            getParent().requestDisallowInterceptTouchEvent(true);
+        }
+        if(action==MotionEvent.ACTION_UP || action==MotionEvent.ACTION_CANCEL){
+            getParent().requestDisallowInterceptTouchEvent(false);
+            if(action==MotionEvent.ACTION_CANCEL)return true;
+        }
+        if(action!=MotionEvent.ACTION_DOWN && action!=MotionEvent.ACTION_MOVE && action!=MotionEvent.ACTION_UP)return true;
         float x=Math.max(0,Math.min(getWidth(),e.getX()));
         float y=Math.max(0,Math.min(getHeight(),e.getY()));
-        hue=getWidth()==0?0f:(x/getWidth())*360f;
+        hue=getWidth()==0?0f:(x/getWidth())*359.9f;
         saturation=getHeight()==0?1f:(y/getHeight());
-        int c=Color.HSVToColor(new float[]{hue,saturation,1f});
-        if(listener!=null) listener.onColorChanged(Color.red(c),Color.green(c),Color.blue(c));
+        int color=Color.HSVToColor(new float[]{hue,saturation,1f});
+        if(listener!=null)listener.onColorChanged(Color.red(color),Color.green(color),Color.blue(color));
         invalidate();
         return true;
     }
