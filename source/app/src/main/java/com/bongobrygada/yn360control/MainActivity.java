@@ -25,11 +25,6 @@ public class MainActivity extends Activity {
     private int paletteR=255, paletteG=0, paletteB=0;
     private LampEffects lampEffects;
     private LightingSession lightingSession;
-    private final LightingSession.Observer lightingObserver=(index,state)->runOnUiThread(()->{
-        if(status!=null)status.setText("L"+index+": "+state);
-        if(light1!=null && light2!=null)updateButtons();
-        if(index==2 && diagResults2!=null)showDiag2();
-    });
     private TextView lamp1State,lamp2State,colorValue,timerStatus1,timerStatus2,selectedTarget;
     private View timerBody, diagnosticsBody;
     private Spinner timerDuration;
@@ -62,6 +57,12 @@ public class MainActivity extends Activity {
     private static final String PREF_L2 = "lamp2_mac";
     private static final String PREF_L1_NAME = "lamp1_name";
     private static final String PREF_L2_NAME = "lamp2_name";
+    private final LightingSession.Observer lightingObserver=(index,state)->runOnUiThread(()->{
+        if(status!=null)status.setText("L"+index+": "+state);
+        if(light1!=null && light2!=null)updateButtons();
+        if(index==2 && diagResults2!=null)showDiag2();
+    });
+
 
     private static class Candidate {
         BluetoothDevice device;
