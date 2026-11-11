@@ -25,6 +25,7 @@ public class BleLightController {
     private volatile int lastRequestCode=-1;
     private volatile String lastPacket="—";
     private volatile boolean preferResponse=false;
+    private volatile int whiteChannel=1;
     private volatile int failedWrites=0;
     private volatile int lastGattStatus=-1;
     private volatile String lastCommand="—";
@@ -44,6 +45,8 @@ public class BleLightController {
     public interface Listener { void onState(String state); }
     public BleLightController(Context c, Listener l) { context = c; listener = l; }
     public boolean isReady(){ return ready; }
+    public void setWhiteChannel(int channel){ if(channel>=1 && channel<=8)whiteChannel=channel; }
+    public int getWhiteChannel(){return whiteChannel;}
     public synchronized void setPreferResponse(boolean prefer){preferResponse=prefer;}
     public boolean canUseResponse(){return (characteristicProps&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0;}
     public boolean canUseNoResponse(){return (characteristicProps&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0;}
@@ -56,7 +59,7 @@ public class BleLightController {
     public String debugSnapshot(){
         String address=deviceAddress==null?"nieprzypisana":deviceAddress.substring(Math.max(0,deviceAddress.length()-8));
         String writeMode=lastWriteType==1?"BEZ POTWIERDZENIA":lastWriteType==2?"Z POTWIERDZENIEM":"brak zapisu";
-        return (ready?"GOTOWA":"NIEPOŁĄCZONA")+" • "+address+"\n"
+        return (ready?"GOTOWA":"NIEPOŁĄCZONA")+" • "+address+" • CCT CH"+whiteChannel+"\n"
             +"Cechy GATT: 0x"+Integer.toHexString(characteristicProps).toUpperCase(java.util.Locale.US)
             +" ("+availableWriteTypes()+")\n"
             +"Tryb ostatniego zapisu: "+writeMode+" • wymuszaj ACK: "+(preferResponse?"TAK":"NIE")+"\n"
@@ -252,7 +255,7 @@ public class BleLightController {
     }
     public void white(int cool,int warm){
         int c=clamp99(cool),w=clamp99(warm);
-        byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,0x01,(byte)c,(byte)w,0x56};
+        byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,(byte)whiteChannel,(byte)c,(byte)w,0x56};
         if(c+w>0)remember(packet);
         write(packet);
     }
@@ -264,7 +267,7 @@ public class BleLightController {
     }
     public void setModeWhite(int cool,int warm){
         int c=clamp99(cool),w=clamp99(warm);
-        byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,0x01,(byte)c,(byte)w,0x56};
+        byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,(byte)whiteChannel,(byte)c,(byte)w,0x56};
         if(c+w>0)remember(packet);
         writeMode(packet);
     }
