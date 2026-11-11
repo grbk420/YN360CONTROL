@@ -15,7 +15,7 @@ public class MainActivity extends Activity {
     private BluetoothAdapter adapter;
     private BleLightController light1, light2;
     private TextView status;
-    private SeekBar brightness, whiteTemp, red, green, blue, fxSpeed;
+    private SeekBar brightness, brightnessCct, whiteTemp, red, green, blue, fxSpeed;
     private ColorPaletteView colorPalette;
     private android.view.View colorPreview;
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
         prefs=getSharedPreferences("yn360", MODE_PRIVATE);
         status=findViewById(R.id.status);
         lamp1State=findViewById(R.id.lamp1State); lamp2State=findViewById(R.id.lamp2State); colorValue=findViewById(R.id.colorValue);
-        brightness=findViewById(R.id.brightness); whiteTemp=findViewById(R.id.whiteTemp);
+        brightness=findViewById(R.id.brightness); brightnessCct=findViewById(R.id.brightnessCct); whiteTemp=findViewById(R.id.whiteTemp);
         red=findViewById(R.id.red); green=findViewById(R.id.green); blue=findViewById(R.id.blue);
         fxSpeed=findViewById(R.id.fxSpeed);
         colorPalette=findViewById(R.id.colorPalette); colorPreview=findViewById(R.id.colorPreview);
@@ -88,6 +88,8 @@ public class MainActivity extends Activity {
         updateButtons();
         setupManualSliders();
         setupColorPalette();
+        setupTabs();
+        setupQuickColors();
         target1.setOnClickListener(v->onTargetChanged());
         target2.setOnClickListener(v->onTargetChanged());
         targetBoth.setOnClickListener(v->onTargetChanged());
@@ -296,7 +298,7 @@ public class MainActivity extends Activity {
                 } else if(s==brightness) {
                     if(manualMode==1) queueLiveRgb(mask,red.getProgress(),green.getProgress(),blue.getProgress());
                     else applyWhiteToMask(mask);
-                } else if(s==whiteTemp){
+                } else if(s==brightnessCct || s==whiteTemp){
                     manualMode=0;
                     applyWhiteToMask(mask);
                 }
@@ -305,6 +307,7 @@ public class MainActivity extends Activity {
             public void onStopTrackingTouch(SeekBar s){}
         };
         brightness.setOnSeekBarChangeListener(listener);
+        brightnessCct.setOnSeekBarChangeListener(listener);
         whiteTemp.setOnSeekBarChangeListener(listener);
         red.setOnSeekBarChangeListener(listener);
         green.setOnSeekBarChangeListener(listener);
@@ -314,7 +317,7 @@ public class MainActivity extends Activity {
     private void setupColorPalette(){
         updatePreview(paletteR,paletteG,paletteB);
         colorPalette.setOnColorChangedListener((r,g,b)->{
-            if(manualMode!=1) stopFx(false);
+            if(lampEffects.hasActive(selectedMask())) stopFx(false);
             manualMode=1;
             paletteR=r; paletteG=g; paletteB=b;
             slidersFromPalette=true;
@@ -325,8 +328,47 @@ public class MainActivity extends Activity {
         });
     }
 
+
+    private void setupTabs() {
+        findViewById(R.id.tabRgb).setOnClickListener(v->showTab(0));
+        findViewById(R.id.tabWhite).setOnClickListener(v->showTab(1));
+        findViewById(R.id.tabFx).setOnClickListener(v->showTab(2));
+        showTab(0);
+    }
+    private void showTab(int selected) {
+        findViewById(R.id.rgbSection).setVisibility(selected==0?View.VISIBLE:View.GONE);
+        findViewById(R.id.whiteSection).setVisibility(selected==1?View.VISIBLE:View.GONE);
+        findViewById(R.id.fxSection).setVisibility(selected==2?View.VISIBLE:View.GONE);
+        int active=android.graphics.Color.parseColor("#6532C7");
+        int inactive=android.graphics.Color.parseColor("#252F46");
+        int[] ids={R.id.tabRgb,R.id.tabWhite,R.id.tabFx};
+        for(int i=0;i<3;i++) {
+            ((Button)findViewById(ids[i])).setBackgroundTintList(
+                android.content.res.ColorStateList.valueOf(i==selected?active:inactive));
+        }
+    }
+    private void setupQuickColors() {
+        int[] ids={R.id.quickRed,R.id.quickOrange,R.id.quickYellow,R.id.quickGreen,R.id.quickCyan,R.id.quickBlue,R.id.quickPink};
+        int[][] colors={{255,20,40},{255,125,8},{255,225,20},{20,235,70},{0,225,250},{25,75,255},{255,0,180}};
+        for(int i=0;i<ids.length;i++) {
+            final int index=i;
+            findViewById(ids[i]).setOnClickListener(v->selectQuickColor(colors[index]));
+        }
+    }
+    private void selectQuickColor(int[] c) {
+        stopFx(false);
+        manualMode=1;
+        slidersFromPalette=true;
+        red.setProgress(c[0]); green.setProgress(c[1]); blue.setProgress(c[2]);
+        slidersFromPalette=false;
+        paletteR=c[0]; paletteG=c[1]; paletteB=c[2];
+        colorPalette.setColor(c[0],c[1],c[2]);
+        updatePreview(c[0],c[1],c[2]);
+        queueLiveRgb(selectedMask(),c[0],c[1],c[2]);
+    }
+
     private void updatePreview(int r,int g,int b){
-        colorPreview.setBackgroundColor(android.graphics.Color.rgb(r,g,b));
+        colorPreview.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(r,g,b)));
         if(colorValue!=null) colorValue.setText(String.format(java.util.Locale.US,"#%02X%02X%02X • RGB %d, %d, %d",r,g,b,r,g,b));
     }
 
@@ -361,7 +403,7 @@ public class MainActivity extends Activity {
     private void applyWhite(){ applyWhiteToMask(selectedMask()); }
     private void applyWhiteToMask(int mask){
         int t=whiteTemp.getProgress();
-        int b99=brightness.getProgress()*99/255;
+        int b99=brightnessCct.getProgress()*99/255;
         int cool=b99*t/255;
         int warm=b99*(255-t)/255;
         forMask(mask,l->l.white(cool,warm));
