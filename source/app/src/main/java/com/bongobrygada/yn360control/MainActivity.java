@@ -434,7 +434,7 @@ public class MainActivity extends Activity {
 
     private void openUpdates(){
         try {
-            Intent intent=new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/grbk420/YN360CONTROL/actions/workflows/build.yml"));
+            Intent intent=new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/grbk420/YN360CONTROL/releases/latest"));
             startActivity(intent);
         } catch(Exception e){
             Toast.makeText(this,"Nie mogę otworzyć strony aktualizacji",Toast.LENGTH_SHORT).show();
