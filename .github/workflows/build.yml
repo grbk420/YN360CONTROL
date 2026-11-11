@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -42,3 +42,15 @@ jobs:
         with:
           name: YN360-Control-v0.8-stable
           path: source/app/build/outputs/apk/release/app-release.apk
+      - name: Publish v0.8 release APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v0.8.apk
+          if gh release view v0.8.0 >/dev/null 2>&1; then
+            gh release upload v0.8.0 YN360-Control-v0.8.apk --clobber
+          else
+            gh release create v0.8.0 YN360-Control-v0.8.apk \
+              --title "YN360 Control v0.8" \
+              --notes "Ciemny interfejs, paleta RGB na żywo, niezależne sterowanie dwiema lampami, poprawki Flash i Strobe, efekty Ocean, Sunset, Pulse, TV i Neon. Oprogramowanie weryfikowane przez kompilator Android; działanie efektów na rzeczywistych lampach wymaga próby."
+          fi
