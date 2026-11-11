@@ -41,6 +41,10 @@ public class MainActivity extends Activity {
     private Button target1, target2, targetBoth;
     private int selectedTargetMask=1;
     private int manualMode = 0; // 0 = white, 1 = RGB
+    private static final int DRAFT_NONE=-1,DRAFT_CCT=0,DRAFT_RGB=1;
+    private final int[] draftMode={DRAFT_NONE,DRAFT_NONE};
+    private final int[][] draftRgb={{255,0,0},{255,0,0}};
+    private final int[][] draftCct={{0,0,128,210},{0,0,128,210}};
     private int activeTab=0;
     private CheckBox cctRgbFallback2;
     private TextView diagResults2;
@@ -97,8 +101,12 @@ public class MainActivity extends Activity {
             int mask=selectedMask();
             stopFx(false);
             int connected=readyMask(mask);
-            forMask(mask,BleLightController::turnOn);
+            for(int i=0;i<2;i++){
+                int bit=1<<i;
+                if((connected&bit)!=0)applyPowerOn(i);
+            }
             showPowerMessage("WŁĄCZ",mask,connected);
+            refreshTargetLabel();
         });
         findViewById(R.id.offBtn).setOnClickListener(v->{
             int mask=selectedMask();
@@ -107,6 +115,7 @@ public class MainActivity extends Activity {
             int connected=readyMask(mask);
             forMask(mask,BleLightController::off);
             showPowerMessage("WYŁĄCZ",mask,connected);
+            refreshTargetLabel();
         });
         findViewById(R.id.whiteBtn).setOnClickListener(v->applySelectedMode(1));
         findViewById(R.id.rgbBtn).setOnClickListener(v->applySelectedMode(0));
@@ -161,8 +170,11 @@ public class MainActivity extends Activity {
         }
     }
     private void refreshTargetLabel(){
-        int mask=selectedMask();
-        if(selectedTarget!=null) selectedTarget.setText("AKTYWNE STEROWANIE • "+targetLabel(mask).toUpperCase(java.util.Locale.ROOT));
+        if(selectedTarget==null || light1==null || light2==null)return;
+        int mask=selectedMask(),allowed=enabledMask(mask);
+        String state=allowed==mask?"WŁĄCZONA":allowed==0?"NACIŚNIJ WŁĄCZ":"CZĘŚCIOWO WŁĄCZONE";
+        selectedTarget.setText(targetLabel(mask).toUpperCase(java.util.Locale.ROOT)+" • "+state);
+        selectedTarget.setTextColor(android.graphics.Color.parseColor(allowed==mask?"#84EBC8":"#CEB4FF"));
     }
     private void setupCollapsibleSections(){
         setTimerExpanded(prefs.getBoolean("timer_expanded",false));
@@ -290,6 +302,7 @@ public class MainActivity extends Activity {
         lamp2State.setText(light2.isReady()?"● Połączona • "+n2:(m2!=null?"◌ Zapamiętana":"○ Rozłączona"));
         lamp1State.setTextColor(android.graphics.Color.parseColor(light1.isReady()?"#41E7A8":"#9CA9C4"));
         lamp2State.setTextColor(android.graphics.Color.parseColor(light2.isReady()?"#41E7A8":"#9CA9C4"));
+        refreshTargetLabel();
     }
 
     private boolean hasBtPermissions(){
@@ -449,6 +462,7 @@ public class MainActivity extends Activity {
 
     private void identify(BleLightController light, String label){
         if(!light.isReady()){Toast.makeText(this,label+" nie jest połączona",Toast.LENGTH_SHORT).show();return;}
+        if(!light.isUserEnabled()){status.setText("Najpierw naciśnij Włącz, aby wykonać test");return;}
         lampEffects.start(LampEffects.Kind.IDENTIFY,light==light1?1:2,220,45,255,255,255);
         status.setText(label+" miga 3×");
     }
@@ -456,7 +470,14 @@ public class MainActivity extends Activity {
     // Live controls: throttle BLE writes to avoid flooding GATT queues.
     private void queueLiveRgb(int mask,int r,int g,int b) {
         if(palettePending!=null) ui.removeCallbacks(palettePending);
-        final int rr=r,gg=g,bb=b,mm=mask;
+        stageRgb(mask);
+        int allowed=enabledMask(mask);
+        if(allowed==0){
+            palettePending=null;
+            status.setText("Kolor zapisany w podglądzie • naciśnij Włącz");
+            return;
+        }
+        final int rr=r,gg=g,bb=b,mm=allowed;
         long delay=Math.max(0,85-(android.os.SystemClock.uptimeMillis()-lastLiveSend));
         palettePending=()->{
             palettePending=null;
@@ -479,9 +500,10 @@ public class MainActivity extends Activity {
                     queueLiveRgb(mask,paletteR,paletteG,paletteB);
                 } else if(s==brightness) {
                     if(manualMode==1) queueLiveRgb(mask,red.getProgress(),green.getProgress(),blue.getProgress());
-                    else applyWhiteToMask(mask);
+                    else { stageWhite(mask);applyWhiteToMask(mask); }
                 } else if(s==brightnessCct || s==whiteTemp){
                     manualMode=0;
+                    stageWhite(mask);
                     applyWhiteToMask(mask);
                 }
             }
@@ -577,7 +599,7 @@ public class MainActivity extends Activity {
             },500);
         });
         findViewById(R.id.diagCopy2).setOnClickListener(v->{
-            String report="YN360 Control v1.1 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
+            String report="YN360 Control v1.2 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
             android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(android.content.ClipData.newPlainText("YN360 diagnostyka L2",report));
             Toast.makeText(this,"Skopiowano diagnostykę Lampy 2",Toast.LENGTH_SHORT).show();
@@ -588,6 +610,10 @@ public class MainActivity extends Activity {
         lampEffects.stop(2);
         if(!light2.isReady()){
             diagLast2=name+": brak aktywnego połączenia BLE. Użyj Połącz ponownie.";
+            showDiag2();return;
+        }
+        if(!light2.isUserEnabled()){
+            diagLast2=name+": najpierw naciśnij Włącz dla Lampy 2";
             showDiag2();return;
         }
         command.run();
@@ -604,24 +630,23 @@ public class MainActivity extends Activity {
         cctRgbFallback2.setChecked(prefs.getBoolean("cct_rgb_fallback_2",false));
         cctRgbFallback2.setOnCheckedChangeListener((button,checked)->{
             prefs.edit().putBoolean("cct_rgb_fallback_2",checked).apply();
-            if(activeTab==1) applySelectedMode(1);
+            if(activeTab==1 && light2!=null && light2.isUserEnabled()) applySelectedMode(1);
         });
     }
     private void applySelectedMode(int mode) {
         showTab(mode);
-        stopFx(false); // Stop any previous scene only on the chosen lamp(s).
+        stopFx(false);
         int mask=selectedMask();
-        int ready=readyMask(mask);
         manualMode=mode==1?0:1;
-        if(ready==0) {
-            status.setText((mode==1?"CCT":"RGB")+": brak połączonej lampy — sprawdź Bluetooth");
-            Toast.makeText(this,"Połącz wybraną lampę",Toast.LENGTH_SHORT).show();
+        if(mode==1)stageWhite(mask);else stageRgb(mask);
+        int allowed=enabledMask(mask);
+        if(allowed==0){
+            status.setText((mode==1?"Biel":"Kolor")+" zapisany w podglądzie • naciśnij Włącz");
             return;
         }
-        if(mode==1) applyWhiteToMask(ready,true);
-        else forMask(ready,l->l.setModeRgb(scaled(red.getProgress()),scaled(green.getProgress()),scaled(blue.getProgress())));
-        status.setText((mode==1?"CCT":"RGB")+" • polecenie zakolejkowane dla "+targetLabel(ready)
-            +(ready==mask?"":" (druga lampa niepołączona)"));
+        if(mode==1) applyWhiteToMask(allowed,true);
+        else forMask(allowed,l->l.setModeRgb(scaled(red.getProgress()),scaled(green.getProgress()),scaled(blue.getProgress())));
+        status.setText((mode==1?"CCT":"RGB")+" • "+targetLabel(allowed));
     }
     private void showTab(int selected) {
         activeTab=selected;
@@ -696,11 +721,49 @@ public class MainActivity extends Activity {
     }
 
     private int scaled(int v){ return Math.max(0,Math.min(255, v*brightness.getProgress()/255)); }
+    private int enabledMask(int mask){
+        return ((mask&1)!=0&&light1.isReady()&&light1.isUserEnabled()?1:0)
+            |((mask&2)!=0&&light2.isReady()&&light2.isUserEnabled()?2:0);
+    }
+    private void stageRgb(int mask){
+        for(int i=0;i<2;i++)if((mask&(1<<i))!=0){
+            draftMode[i]=DRAFT_RGB;
+            draftRgb[i][0]=scaled(red.getProgress());
+            draftRgb[i][1]=scaled(green.getProgress());
+            draftRgb[i][2]=scaled(blue.getProgress());
+        }
+    }
+    private void stageWhite(int mask){
+        int temp=whiteTemp.getProgress(),brightnessValue=brightnessCct.getProgress();
+        int value99=Math.max(0,brightnessValue*99/255);
+        int cool=value99*temp/255,warm=value99*(255-temp)/255;
+        for(int i=0;i<2;i++)if((mask&(1<<i))!=0){
+            draftMode[i]=DRAFT_CCT;
+            draftCct[i][0]=cool;draftCct[i][1]=warm;
+            draftCct[i][2]=temp;draftCct[i][3]=brightnessValue;
+        }
+    }
+    private void applyPowerOn(int index){
+        BleLightController lamp=index==0?light1:light2;
+        if(!lamp.isReady())return;
+        lamp.setUserEnabled(true);
+        if(draftMode[index]==DRAFT_RGB){
+            lamp.setModeRgb(draftRgb[index][0],draftRgb[index][1],draftRgb[index][2]);
+        }else if(draftMode[index]==DRAFT_CCT){
+            if(index==1&&cctRgbFallback2!=null&&cctRgbFallback2.isChecked()){
+                float fraction=draftCct[index][2]/255f,level=draftCct[index][3]/255f;
+                lamp.setModeRgb(Math.round((255-28*fraction)*level),
+                    Math.round((149+90*fraction)*level),
+                    Math.round((80+175*fraction)*level));
+            }else lamp.setModeWhite(draftCct[index][0],draftCct[index][1]);
+        }else lamp.turnOn();
+    }
     private void applyRgb(int r,int g,int b){ applyRgbToMask(selectedMask(),r,g,b); }
-    private void applyRgbToMask(int mask,int r,int g,int b){ forMask(mask,l->l.rgb(scaled(r),scaled(g),scaled(b))); }
+    private void applyRgbToMask(int mask,int r,int g,int b){ forMask(enabledMask(mask),l->l.rgb(scaled(r),scaled(g),scaled(b))); }
     private void applyWhite(){ applyWhiteToMask(selectedMask()); }
     private void applyWhiteToMask(int mask){ applyWhiteToMask(mask,false); }
     private void applyWhiteToMask(int mask,boolean priority){
+        mask=enabledMask(mask);
         final int temp=whiteTemp.getProgress();
         final int b99=Math.max(0,brightnessCct.getProgress()*99/255);
         final int cool=b99*temp/255;
@@ -728,7 +791,9 @@ public class MainActivity extends Activity {
     private void startScene(LampEffects.Kind kind,String name) {
         if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
         int mask=selectedMask();
-        int actual=lampEffects.start(kind,mask,brightness.getProgress(),fxSpeed.getProgress(),red.getProgress(),green.getProgress(),blue.getProgress());
+        int allowed=enabledMask(mask);
+        if(allowed==0){status.setText("Najpierw naciśnij Włącz • scena nie uruchomiona");return;}
+        int actual=lampEffects.start(kind,allowed,brightness.getProgress(),fxSpeed.getProgress(),red.getProgress(),green.getProgress(),blue.getProgress());
         if(actual==0){status.setText("Połącz wybraną lampę przez Bluetooth");Toast.makeText(this,"Brak połączenia",Toast.LENGTH_SHORT).show();}
         else status.setText(name+" • "+targetLabel(actual)+(actual==mask?"":" (podłączone)"));
     }
