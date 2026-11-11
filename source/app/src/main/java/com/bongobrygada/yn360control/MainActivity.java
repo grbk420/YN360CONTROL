@@ -39,6 +39,8 @@ public class MainActivity extends Activity {
     };
     private RadioButton target1, target2, targetBoth;
     private int manualMode = 0; // 0 = white, 1 = RGB
+    private int activeTab=0;
+    private CheckBox cctRgbFallback2;
     private SharedPreferences prefs;
     private static final String PREF_L1 = "lamp1_mac";
     private static final String PREF_L2 = "lamp2_mac";
@@ -64,6 +66,7 @@ public class MainActivity extends Activity {
         fxSpeed=findViewById(R.id.fxSpeed);
         colorPalette=findViewById(R.id.colorPalette); colorPreview=findViewById(R.id.colorPreview);
         target1=findViewById(R.id.target1); target2=findViewById(R.id.target2); targetBoth=findViewById(R.id.targetBoth);
+        cctRgbFallback2=findViewById(R.id.cctRgbFallback2);
 
         BluetoothManager bm=(BluetoothManager)getSystemService(BLUETOOTH_SERVICE); adapter=bm.getAdapter();
         light1=new BleLightController(this, s->runOnUiThread(()->{status.setText("L1: "+s); updateButtons();}));
@@ -90,8 +93,8 @@ public class MainActivity extends Activity {
             forMask(mask,BleLightController::off);
             showPowerMessage("WYŁĄCZ",mask,connected);
         });
-        findViewById(R.id.whiteBtn).setOnClickListener(v->{stopFx(false); manualMode=0; applyWhite();});
-        findViewById(R.id.rgbBtn).setOnClickListener(v->{stopFx(false); manualMode=1; applyRgb(red.getProgress(),green.getProgress(),blue.getProgress());});
+        findViewById(R.id.whiteBtn).setOnClickListener(v->applySelectedMode(1));
+        findViewById(R.id.rgbBtn).setOnClickListener(v->applySelectedMode(0));
         findViewById(R.id.policeBtn).setOnClickListener(v->startPolice());
         findViewById(R.id.discoBtn).setOnClickListener(v->startDisco());
         findViewById(R.id.strobeBtn).setOnClickListener(v->startStrobe());
@@ -115,6 +118,7 @@ public class MainActivity extends Activity {
         setupManualSliders();
         setupColorPalette();
         setupTabs();
+        setupCctFallback();
         setupQuickColors();
         setupTimerControls();
         target1.setOnClickListener(v->onTargetChanged());
@@ -439,12 +443,36 @@ public class MainActivity extends Activity {
 
 
     private void setupTabs() {
-        findViewById(R.id.tabRgb).setOnClickListener(v->showTab(0));
-        findViewById(R.id.tabWhite).setOnClickListener(v->showTab(1));
+        findViewById(R.id.tabRgb).setOnClickListener(v->applySelectedMode(0));
+        findViewById(R.id.tabWhite).setOnClickListener(v->applySelectedMode(1));
         findViewById(R.id.tabFx).setOnClickListener(v->showTab(2));
-        showTab(0);
+        showTab(0);  // Display only during initial UI setup, no BLE writes yet.
+    }
+    private void setupCctFallback() {
+        cctRgbFallback2.setChecked(prefs.getBoolean("cct_rgb_fallback_2",false));
+        cctRgbFallback2.setOnCheckedChangeListener((button,checked)->{
+            prefs.edit().putBoolean("cct_rgb_fallback_2",checked).apply();
+            if(activeTab==1) applySelectedMode(1);
+        });
+    }
+    private void applySelectedMode(int mode) {
+        showTab(mode);
+        stopFx(false); // Stop any previous scene only on the chosen lamp(s).
+        int mask=selectedMask();
+        int ready=readyMask(mask);
+        manualMode=mode==1?0:1;
+        if(ready==0) {
+            status.setText((mode==1?"CCT":"RGB")+": brak połączonej lampy — sprawdź Bluetooth");
+            Toast.makeText(this,"Połącz wybraną lampę",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if(mode==1) applyWhiteToMask(ready);
+        else applyRgbToMask(ready,red.getProgress(),green.getProgress(),blue.getProgress());
+        status.setText((mode==1?"CCT":"RGB")+" • komenda wysłana do "+targetLabel(ready)
+            +(ready==mask?"":" (druga lampa niepołączona)"));
     }
     private void showTab(int selected) {
+        activeTab=selected;
         findViewById(R.id.rgbSection).setVisibility(selected==0?View.VISIBLE:View.GONE);
         findViewById(R.id.whiteSection).setVisibility(selected==1?View.VISIBLE:View.GONE);
         findViewById(R.id.fxSection).setVisibility(selected==2?View.VISIBLE:View.GONE);
@@ -484,8 +512,14 @@ public class MainActivity extends Activity {
     private void onTargetChanged(){
         if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
         int mask=selectedMask();
-        String t=mask==1?"Lampa 1":(mask==2?"Lampa 2":"Obie lampy");
-        status.setText("Sterowanie: "+t);
+        if(activeTab==1) {
+            // Selecting Lampa 2 while CCT is already visible must activate CCT on Lampa 2.
+            applySelectedMode(1);
+        } else if(activeTab==0) {
+            applySelectedMode(0);
+        } else {
+            status.setText("Sterowanie: "+targetLabel(mask));
+        }
     }
 
     private interface Action { void run(BleLightController l); }
@@ -511,11 +545,22 @@ public class MainActivity extends Activity {
     private void applyRgbToMask(int mask,int r,int g,int b){ forMask(mask,l->l.rgb(scaled(r),scaled(g),scaled(b))); }
     private void applyWhite(){ applyWhiteToMask(selectedMask()); }
     private void applyWhiteToMask(int mask){
-        int t=whiteTemp.getProgress();
-        int b99=brightnessCct.getProgress()*99/255;
-        int cool=b99*t/255;
-        int warm=b99*(255-t)/255;
-        forMask(mask,l->l.white(cool,warm));
+        final int temp=whiteTemp.getProgress();
+        final int b99=Math.max(0,brightnessCct.getProgress()*99/255);
+        final int cool=b99*temp/255;
+        final int warm=b99*(255-temp)/255;
+        if((mask&1)!=0 && light1.isReady()) light1.white(cool,warm);
+        if((mask&2)!=0 && light2.isReady()){
+            if(cctRgbFallback2!=null && cctRgbFallback2.isChecked()){
+                // Compatibility option for a lamp that accepts RGB but ignores native white packets.
+                // Approximate cool/warm appearance using the RGB LEDs (not true high-CRI CCT).
+                float fraction=temp/255f;
+                int r=Math.round((255-28*fraction)*brightnessCct.getProgress()/255f);
+                int g=Math.round((149+90*fraction)*brightnessCct.getProgress()/255f);
+                int b=Math.round((80+175*fraction)*brightnessCct.getProgress()/255f);
+                light2.rgb(r,g,b);
+            } else light2.white(cool,warm);
+        }
     }
 
 
