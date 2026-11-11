@@ -36,7 +36,7 @@ jobs:
         run: |
           rm -rf buildsrc
           mkdir buildsrc
-          unzip -o YN360Control_v0.3_filtered.zip -d buildsrc
+          unzip -o YN360Control_v0.4_names_identify.zip -d buildsrc
 
       - name: Build APK
         working-directory: buildsrc/YN360Control
@@ -45,5 +45,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-APK
+          name: YN360-Control-v0.4
           path: buildsrc/YN360Control/app/build/outputs/apk/debug/app-debug.apk
