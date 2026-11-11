@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v0.8-stable
+          name: YN360-Control-v0.9-stable
           path: source/app/build/outputs/apk/release/app-release.apk
       - name: Publish v0.8 release APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v0.8.apk
-          if gh release view v0.8.0 >/dev/null 2>&1; then
-            gh release upload v0.8.0 YN360-Control-v0.8.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v0.9.apk
+          if gh release view v0.9.0 >/dev/null 2>&1; then
+            gh release upload v0.9.0 YN360-Control-v0.9.apk --clobber
           else
-            gh release create v0.8.0 YN360-Control-v0.8.apk \
-              --title "YN360 Control v0.8" \
-              --notes "Ciemny interfejs, paleta RGB na żywo, niezależne sterowanie dwiema lampami, poprawki Flash i Strobe, efekty Ocean, Sunset, Pulse, TV i Neon. Oprogramowanie weryfikowane przez kompilator Android; działanie efektów na rzeczywistych lampach wymaga próby."
+            gh release create v0.9.0 YN360-Control-v0.9.apk \
+              --title "YN360 Control v0.9" \
+              --notes "Naprawione zdalne ON/OFF (protokół YN360) i timer wyłączenia osobno dla dwóch lamp z usługą Bluetooth. Zachowane ostatnie ustawienie światła. Wymaga testu na lampach. Oprogramowanie weryfikowane przez kompilator Android; działanie efektów na rzeczywistych lampach wymaga próby."
           fi
