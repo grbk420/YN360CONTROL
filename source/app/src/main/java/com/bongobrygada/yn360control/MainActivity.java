@@ -41,6 +41,8 @@ public class MainActivity extends Activity {
     private int manualMode = 0; // 0 = white, 1 = RGB
     private int activeTab=0;
     private CheckBox cctRgbFallback2;
+    private TextView diagResults2;
+    private String diagLast2="Nie uruchomiono testu";
     private SharedPreferences prefs;
     private static final String PREF_L1 = "lamp1_mac";
     private static final String PREF_L2 = "lamp2_mac";
@@ -67,10 +69,15 @@ public class MainActivity extends Activity {
         colorPalette=findViewById(R.id.colorPalette); colorPreview=findViewById(R.id.colorPreview);
         target1=findViewById(R.id.target1); target2=findViewById(R.id.target2); targetBoth=findViewById(R.id.targetBoth);
         cctRgbFallback2=findViewById(R.id.cctRgbFallback2);
+        diagResults2=findViewById(R.id.diagResults2);
 
         BluetoothManager bm=(BluetoothManager)getSystemService(BLUETOOTH_SERVICE); adapter=bm.getAdapter();
         light1=new BleLightController(this, s->runOnUiThread(()->{status.setText("L1: "+s); updateButtons();}));
-        light2=new BleLightController(this, s->runOnUiThread(()->{status.setText("L2: "+s); updateButtons();}));
+        light2=new BleLightController(this, s->runOnUiThread(()->{
+            status.setText("L2: "+s);
+            updateButtons();
+            if(diagResults2!=null) showDiag2();
+        }));
         lampEffects=new LampEffects(light1,light2);
 
         findViewById(R.id.updatesBtn).setOnClickListener(v->openUpdates());
@@ -119,6 +126,7 @@ public class MainActivity extends Activity {
         setupColorPalette();
         setupTabs();
         setupCctFallback();
+        setupDiagnostics2();
         setupQuickColors();
         setupTimerControls();
         target1.setOnClickListener(v->onTargetChanged());
@@ -448,6 +456,51 @@ public class MainActivity extends Activity {
         findViewById(R.id.tabFx).setOnClickListener(v->showTab(2));
         showTab(0);  // Display only during initial UI setup, no BLE writes yet.
     }
+
+    private void setupDiagnostics2() {
+        findViewById(R.id.diagRgb2).setOnClickListener(v->runLamp2Test("RGB CZERWONY",()->light2.setModeRgb(255,0,0)));
+        findViewById(R.id.diagWhite2).setOnClickListener(v->runLamp2Test("NATYWNE CCT",()->light2.setModeWhite(50,50)));
+        findViewById(R.id.diagFallback2).setOnClickListener(v->runLamp2Test("BIEL PRZEZ RGB",()->light2.setModeRgb(255,220,180)));
+        findViewById(R.id.diagReconnect2).setOnClickListener(v->{
+            String addr=prefs.getString(PREF_L2,null);
+            if(addr==null || adapter==null || !adapter.isEnabled() || !hasBtPermissions()) {
+                diagLast2="Nie można połączyć — brak zapisanej Lampy 2 lub pozwolenia Bluetooth";
+                showDiag2();
+                return;
+            }
+            lampEffects.stop(2);
+            light2.disconnect();
+            diagLast2="Ponowne łączenie Lampy 2…";
+            showDiag2();
+            ui.postDelayed(()->{
+                try{light2.connect(adapter.getRemoteDevice(addr));}
+                catch(Exception error){diagLast2="Błąd ponownego łączenia: "+error.getClass().getSimpleName();showDiag2();}
+            },500);
+        });
+        findViewById(R.id.diagCopy2).setOnClickListener(v->{
+            String report="YN360 Control v0.11 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
+            android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("YN360 diagnostyka L2",report));
+            Toast.makeText(this,"Skopiowano diagnostykę Lampy 2",Toast.LENGTH_SHORT).show();
+        });
+        showDiag2();
+    }
+    private void runLamp2Test(String name,Runnable command) {
+        lampEffects.stop(2);
+        if(!light2.isReady()){
+            diagLast2=name+": brak aktywnego połączenia BLE. Użyj Połącz ponownie.";
+            showDiag2();return;
+        }
+        command.run();
+        diagLast2=name+": żądanie wysłane do kolejki Lampy 2 (sprawdź reakcję)";
+        showDiag2();
+        ui.postDelayed(this::showDiag2,1200);
+    }
+    private void showDiag2(){
+        if(diagResults2==null || light2==null)return;
+        diagResults2.setText(diagLast2+"\n"+light2.debugSnapshot());
+    }
+
     private void setupCctFallback() {
         cctRgbFallback2.setChecked(prefs.getBoolean("cct_rgb_fallback_2",false));
         cctRgbFallback2.setOnCheckedChangeListener((button,checked)->{
@@ -468,7 +521,7 @@ public class MainActivity extends Activity {
         }
         if(mode==1) applyWhiteToMask(ready,true);
         else forMask(ready,l->l.setModeRgb(scaled(red.getProgress()),scaled(green.getProgress()),scaled(blue.getProgress())));
-        status.setText((mode==1?"CCT":"RGB")+" • komenda wysłana do "+targetLabel(ready)
+        status.setText((mode==1?"CCT":"RGB")+" • polecenie zakolejkowane dla "+targetLabel(ready)
             +(ready==mask?"":" (druga lampa niepołączona)"));
     }
     private void showTab(int selected) {
