@@ -23,12 +23,9 @@ public class MainActivity extends Activity {
     private long lastLiveSend=0L;
     private boolean slidersFromPalette=false;
     private int paletteR=255, paletteG=0, paletteB=0;
-    private int fxToken=0;
+    private LampEffects lampEffects;
+    private TextView lamp1State,lamp2State,colorValue;
     private RadioButton target1, target2, targetBoth;
-    private final Handler fx = new Handler(Looper.getMainLooper());
-    private Runnable currentFx;
-    private final Random random = new Random();
-    private int fadeHue = 0;
     private int manualMode = 0; // 0 = white, 1 = RGB
     private SharedPreferences prefs;
     private static final String PREF_L1 = "lamp1_mac";
@@ -48,6 +45,7 @@ public class MainActivity extends Activity {
         super.onCreate(b); setContentView(R.layout.activity_main);
         prefs=getSharedPreferences("yn360", MODE_PRIVATE);
         status=findViewById(R.id.status);
+        lamp1State=findViewById(R.id.lamp1State); lamp2State=findViewById(R.id.lamp2State); colorValue=findViewById(R.id.colorValue);
         brightness=findViewById(R.id.brightness); whiteTemp=findViewById(R.id.whiteTemp);
         red=findViewById(R.id.red); green=findViewById(R.id.green); blue=findViewById(R.id.blue);
         fxSpeed=findViewById(R.id.fxSpeed);
@@ -57,6 +55,7 @@ public class MainActivity extends Activity {
         BluetoothManager bm=(BluetoothManager)getSystemService(BLUETOOTH_SERVICE); adapter=bm.getAdapter();
         light1=new BleLightController(this, s->runOnUiThread(()->{status.setText("L1: "+s); updateButtons();}));
         light2=new BleLightController(this, s->runOnUiThread(()->{status.setText("L2: "+s); updateButtons();}));
+        lampEffects=new LampEffects(light1,light2);
 
         findViewById(R.id.updatesBtn).setOnClickListener(v->openUpdates());
         findViewById(R.id.connect1).setOnClickListener(v->chooseVerifiedLamp(1));
@@ -74,6 +73,16 @@ public class MainActivity extends Activity {
         findViewById(R.id.fadeBtn).setOnClickListener(v->startFade());
         findViewById(R.id.lightningBtn).setOnClickListener(v->startLightning());
         findViewById(R.id.candleBtn).setOnClickListener(v->startCandle());
+        findViewById(R.id.oceanBtn).setOnClickListener(v->startScene(LampEffects.Kind.OCEAN,"OCEAN"));
+        findViewById(R.id.sunsetBtn).setOnClickListener(v->startScene(LampEffects.Kind.SUNSET,"SUNSET"));
+        findViewById(R.id.pulseBtn).setOnClickListener(v->startScene(LampEffects.Kind.PULSE,"PULSE"));
+        findViewById(R.id.tvBtn).setOnClickListener(v->startScene(LampEffects.Kind.TV,"TV"));
+        findViewById(R.id.neonBtn).setOnClickListener(v->startScene(LampEffects.Kind.NEON,"NEON"));
+        fxSpeed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+          public void onProgressChanged(SeekBar s,int p,boolean fromUser){if(fromUser) lampEffects.changeSpeed(p);}
+          public void onStartTrackingTouch(SeekBar s){}
+          public void onStopTrackingTouch(SeekBar s){}
+        });
         findViewById(R.id.stopFxBtn).setOnClickListener(v->stopFx(true));
         requestBtPermissions();
         updateButtons();
@@ -95,6 +104,10 @@ public class MainActivity extends Activity {
         String n1=prefs.getString(PREF_L1_NAME,"YN360"), n2=prefs.getString(PREF_L2_NAME,"YN360");
         ((Button)findViewById(R.id.connect1)).setText(light1.isReady()?"Lampa 1 ✓  "+n1:(m1!=null?"Lampa 1 • "+n1+" • "+shortMac(m1):"Lampa 1"));
         ((Button)findViewById(R.id.connect2)).setText(light2.isReady()?"Lampa 2 ✓  "+n2:(m2!=null?"Lampa 2 • "+n2+" • "+shortMac(m2):"Lampa 2"));
+        lamp1State.setText(light1.isReady()?"● POŁĄCZONA":(m1!=null?"◌ ZAPISANA":"○ ROZŁĄCZONA"));
+        lamp2State.setText(light2.isReady()?"● POŁĄCZONA":(m2!=null?"◌ ZAPISANA":"○ ROZŁĄCZONA"));
+        lamp1State.setTextColor(android.graphics.Color.parseColor(light1.isReady()?"#41E7A8":"#9CA9C4"));
+        lamp2State.setTextColor(android.graphics.Color.parseColor(light2.isReady()?"#41E7A8":"#9CA9C4"));
     }
 
     private boolean hasBtPermissions(){
@@ -251,23 +264,10 @@ public class MainActivity extends Activity {
 
 
     private void identify(BleLightController light, String label){
-        if(!light.isReady()){ Toast.makeText(this,label+" nie jest połączona",Toast.LENGTH_SHORT).show(); return; }
-        stopFx(false);
-        final int token=++fxToken;
-        final int[] step={0};
-        Runnable r=new Runnable(){ public void run(){
-            if(token!=fxToken) return;
-            if(step[0]>=6){ light.off(); status.setText(label+" zidentyfikowana"); currentFx=null; return; }
-            if(step[0]%2==0) light.white(99,99); else light.off();
-            step[0]++;
-            currentFx=this;
-            fx.postDelayed(this,190);
-        }};
-        currentFx=r;
-        status.setText(label+" miga 3× — sprawdź która to fizycznie lampa");
-        fx.post(r);
+        if(!light.isReady()){Toast.makeText(this,label+" nie jest połączona",Toast.LENGTH_SHORT).show();return;}
+        lampEffects.start(LampEffects.Kind.IDENTIFY,light==light1?1:2,220,45,255,255,255);
+        status.setText(label+" miga 3×");
     }
-
 
     // Live controls: throttle BLE writes to avoid flooding GATT queues.
     private void queueLiveRgb(int mask,int r,int g,int b) {
@@ -327,10 +327,11 @@ public class MainActivity extends Activity {
 
     private void updatePreview(int r,int g,int b){
         colorPreview.setBackgroundColor(android.graphics.Color.rgb(r,g,b));
+        if(colorValue!=null) colorValue.setText(String.format(java.util.Locale.US,"#%02X%02X%02X • RGB %d, %d, %d",r,g,b,r,g,b));
     }
 
     private void onTargetChanged(){
-        stopFx(false);
+        if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
         int mask=selectedMask();
         String t=mask==1?"Lampa 1":(mask==2?"Lampa 2":"Obie lampy");
         status.setText("Sterowanie: "+t);
@@ -366,120 +367,37 @@ public class MainActivity extends Activity {
         forMask(mask,l->l.white(cool,warm));
     }
 
-    private long speed(long slowMs, long fastMs){ int p=fxSpeed.getProgress(); return slowMs - ((slowMs-fastMs)*p/100L); }
 
-    private void stopFx(boolean announce){
-        fxToken++;
-        if(currentFx!=null) fx.removeCallbacks(currentFx);
-        currentFx=null;
-        if(palettePending!=null){ ui.removeCallbacks(palettePending); palettePending=null; }
-        // Do not wipe unselected lamp queues when switching modes.
-        cancelForMask(selectedMask());
-        if(announce) status.setText("Efekt zatrzymany");
+    private void stopFx(boolean announce) {
+        if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
+        lampEffects.stop(selectedMask());
+        if(announce) status.setText("Zatrzymano • "+targetLabel(selectedMask()));
     }
-
-    private void schedule(Runnable r,long ms,int token){
-        if(token!=fxToken) return;
-        currentFx=r;
-        fx.postDelayed(r,Math.max(70,ms));
+    private void startScene(LampEffects.Kind kind,String name) {
+        if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
+        int mask=selectedMask();
+        int actual=lampEffects.start(kind,mask,brightness.getProgress(),fxSpeed.getProgress(),red.getProgress(),green.getProgress(),blue.getProgress());
+        if(actual==0){status.setText("Połącz wybraną lampę przez Bluetooth");Toast.makeText(this,"Brak połączenia",Toast.LENGTH_SHORT).show();}
+        else status.setText(name+" • "+targetLabel(actual)+(actual==mask?"":" (podłączone)"));
     }
-
-    private void startPolice(){
-        stopFx(false); final int token=++fxToken; final int mask=selectedMask(); final boolean[] phase={true};
-        Runnable r=new Runnable(){ public void run(){
-            if(token!=fxToken) return;
-            if(mask==3){
-                if(phase[0]){ if(light1.isReady()) light1.rgb(scaled(255),0,0); if(light2.isReady()) light2.rgb(0,0,scaled(255)); }
-                else { if(light1.isReady()) light1.rgb(0,0,scaled(255)); if(light2.isReady()) light2.rgb(scaled(255),0,0); }
-            } else {
-                if(phase[0]) applyRgbToMask(mask,255,0,0); else applyRgbToMask(mask,0,0,255);
-            }
-            phase[0]=!phase[0]; schedule(this,speed(460,110),token);
-        }}; currentFx=r; fx.post(r); status.setText("POLICE • "+targetLabel(mask));
-    }
-
-    private void startDisco(){
-        stopFx(false); final int token=++fxToken; final int mask=selectedMask();
-        Runnable r=new Runnable(){ public void run(){
-            if(token!=fxToken) return;
-            applyRgbToMask(mask,random.nextInt(256),random.nextInt(256),random.nextInt(256));
-            schedule(this,speed(760,120),token);
-        }}; currentFx=r; fx.post(r); status.setText("DISCO • "+targetLabel(mask));
-    }
-
-    private void startStrobe(){
-        stopFx(false); final int token=++fxToken; final int mask=selectedMask(); final boolean[] on={false};
-        Runnable r=new Runnable(){ public void run(){
-            if(token!=fxToken) return;
-            on[0]=!on[0];
-            if(on[0]) forMask(mask,l->{int v=brightness.getProgress()*99/255; l.white(v,v);}); else forMask(mask,BleLightController::off);
-            schedule(this,speed(340,85),token);
-        }}; currentFx=r; fx.post(r); status.setText("STROBE • "+targetLabel(mask)+" ⚠");
-    }
-
-    private void startFlash(){
-        stopFx(false); final int token=++fxToken; final int mask=selectedMask(); final int[] step={0};
-        Runnable r=new Runnable(){ public void run(){
-            if(token!=fxToken) return;
-            int s=step[0]++%8;
-            if(s==0||s==2||s==4) forMask(mask,l->{int v=brightness.getProgress()*99/255; l.white(v,v);}); else forMask(mask,BleLightController::off);
-            schedule(this,(s<5?speed(210,90):speed(950,280)),token);
-        }}; currentFx=r; fx.post(r); status.setText("FLASH • "+targetLabel(mask));
-    }
-
-    private void startFade(){
-        stopFx(false); final int token=++fxToken; final int mask=selectedMask(); fadeHue=0;
-        Runnable r=new Runnable(){ public void run(){
-            if(token!=fxToken) return;
-            float[] hsv={fadeHue%360,1f,1f};
-            int c=android.graphics.Color.HSVToColor(hsv);
-            applyRgbToMask(mask,android.graphics.Color.red(c),android.graphics.Color.green(c),android.graphics.Color.blue(c));
-            fadeHue+=5;
-            schedule(this,speed(190,85),token);
-        }}; currentFx=r; fx.post(r); status.setText("COLOR FADE • "+targetLabel(mask));
-    }
-
-    private void startLightning(){
-        stopFx(false); final int token=++fxToken; final int mask=selectedMask(); final int[] burst={0};
-        Runnable r=new Runnable(){ public void run(){
-            if(token!=fxToken) return;
-            if(burst[0]<=0){
-                forMask(mask,BleLightController::off);
-                burst[0]=2+random.nextInt(5);
-                schedule(this,550+random.nextInt(1700),token);
-            } else {
-                boolean on=(burst[0]%2==0);
-                if(on) forMask(mask,l->{int v=brightness.getProgress()*99/255; l.white(v,v);}); else forMask(mask,BleLightController::off);
-                burst[0]--;
-                schedule(this,80+random.nextInt(100),token);
-            }
-        }}; currentFx=r; fx.post(r); status.setText("LIGHTNING • "+targetLabel(mask));
-    }
-
-    private void startCandle(){
-        stopFx(false); final int token=++fxToken; final int mask=selectedMask();
-        Runnable r=new Runnable(){ public void run(){
-            if(token!=fxToken) return;
-            // Prawdziwie ognisty preset: pomarańcz/czerwień z lekkim, nieregularnym migotaniem.
-            int rVal=235+random.nextInt(21);
-            int gVal=35+random.nextInt(65);
-            int bVal=random.nextInt(18);
-            if(random.nextInt(7)==0) gVal=Math.max(35,gVal-30);
-            applyRgbToMask(mask,rVal,gVal,bVal);
-            schedule(this,speed(290,105)+random.nextInt(70),token);
-        }}; currentFx=r; fx.post(r); status.setText("FIRE / CANDLE • "+targetLabel(mask));
-    }
+    private void startPolice(){startScene(LampEffects.Kind.POLICE,"POLICE");}
+    private void startDisco(){startScene(LampEffects.Kind.DISCO,"DISCO");}
+    private void startStrobe(){startScene(LampEffects.Kind.STROBE,"STROBE ⚠");}
+    private void startFlash(){startScene(LampEffects.Kind.FLASH,"FLASH");}
+    private void startFade(){startScene(LampEffects.Kind.FADE,"COLOR FADE");}
+    private void startLightning(){startScene(LampEffects.Kind.LIGHTNING,"LIGHTNING");}
+    private void startCandle(){startScene(LampEffects.Kind.CANDLE,"FIRE / CANDLE");}
 
     private String targetLabel(int mask){ return mask==1?"Lampa 1":(mask==2?"Lampa 2":"Obie"); }
 
     private void openUpdates(){
         try {
-            Intent intent=new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/grbk420/YN360CONTROL/releases"));
+            Intent intent=new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/grbk420/YN360CONTROL/actions/workflows/build.yml"));
             startActivity(intent);
         } catch(Exception e){
             Toast.makeText(this,"Nie mogę otworzyć strony aktualizacji",Toast.LENGTH_SHORT).show();
         }
     }
 
-    @Override protected void onDestroy(){ super.onDestroy(); stopFx(false); light1.disconnect(); light2.disconnect(); }
+    @Override protected void onDestroy(){ super.onDestroy(); if(palettePending!=null) ui.removeCallbacks(palettePending); lampEffects.close(); light1.disconnect(); light2.disconnect(); }
 }
