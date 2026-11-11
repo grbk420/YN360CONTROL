@@ -23,6 +23,8 @@ public class BleLightController {
     private boolean inFlightNoResponse = false;
     private int retryFailures = 0;
     private long generation = 0;
+    private String deviceAddress;
+    private byte[] lastLitPacket = new byte[]{(byte)0xAE,(byte)0xAA,0x01,50,45,0x56};
 
     public interface Listener { void onState(String state); }
     public BleLightController(Context c, Listener l) { context = c; listener = l; }
@@ -31,6 +33,17 @@ public class BleLightController {
     @SuppressWarnings("MissingPermission")
     public void connect(BluetoothDevice device) {
         disconnect();
+        deviceAddress=device.getAddress();
+        String stored=context.getSharedPreferences("yn360",Context.MODE_PRIVATE)
+            .getString("last_lit_"+deviceAddress,null);
+        if(stored!=null && stored.length()==12){
+            try{
+                byte[] previous=new byte[6];
+                for(int i=0;i<6;i++) previous[i]=(byte)Integer.parseInt(stored.substring(i*2,i*2+2),16);
+                if((previous[0]&0xFF)==0xAE && (previous[5]&0xFF)==0x56 &&
+                   ((previous[1]&0xFF)==0xA1||(previous[1]&0xFF)==0xAA)) lastLitPacket=previous;
+            }catch(Exception ignored){}
+        }
         listener.onState("Łączenie: " + safeName(device));
         gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE);
     }
@@ -123,9 +136,32 @@ public class BleLightController {
         }
     }
 
-    public void off(){ write(new byte[]{(byte)0xAE,(byte)0xEE,0,0,0,0x56}); }
-    public void rgb(int r,int g,int b){ write(new byte[]{(byte)0xAE,(byte)0xA1,(byte)clamp255(r),(byte)clamp255(g),(byte)clamp255(b),0x56}); }
-    public void white(int cool,int warm){ write(new byte[]{(byte)0xAE,(byte)0xAA,0x01,(byte)clamp99(cool),(byte)clamp99(warm),0x56}); }
+    // YN360 protocol: 0xA3 is the actual OFF instruction (NOT 0xEE).
+    // Bluetooth stays alive while the LEDs are switched off.
+    public void off(){ write(new byte[]{(byte)0xAE,(byte)0xA3,0,0,0,0x56}); }
+    public void turnOn(){ write(lastLitPacket.clone()); }
+
+    private void remember(byte[] packet){
+        lastLitPacket=packet.clone();
+        if(deviceAddress==null)return;
+        StringBuilder hex=new StringBuilder(12);
+        for(byte b:packet) hex.append(String.format(java.util.Locale.US,"%02X",b&255));
+        context.getSharedPreferences("yn360",Context.MODE_PRIVATE).edit()
+            .putString("last_lit_"+deviceAddress,hex.toString()).apply();
+    }
+
+    public void rgb(int r,int g,int b){
+        int rr=clamp255(r),gg=clamp255(g),bb=clamp255(b);
+        byte[] packet=new byte[]{(byte)0xAE,(byte)0xA1,(byte)rr,(byte)gg,(byte)bb,0x56};
+        if(rr+gg+bb>0) remember(packet); // Never replace remembered color with black strobe frames.
+        write(packet);
+    }
+    public void white(int cool,int warm){
+        int c=clamp99(cool),w=clamp99(warm);
+        byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,0x01,(byte)c,(byte)w,0x56};
+        if(c+w>0)remember(packet);
+        write(packet);
+    }
     private int clamp255(int v){ return Math.max(0,Math.min(255,v)); }
     private int clamp99(int v){ return Math.max(0,Math.min(99,v)); }
 }
