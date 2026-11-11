@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.bongobrygada.yn360control'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.bongobrygada.yn360control'
+        minSdk 26
+        targetSdk 35
+        versionCode 6
+        versionName '0.6'
+    }
+}

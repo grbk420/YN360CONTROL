@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="#0B0D10">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="YN360 CONTROL"
+            android:textColor="#FFFFFF"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="5dp"
+            android:paddingBottom="14dp"
+            android:text="Połącz lampy"
+            android:textColor="#AEB6C2" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="POŁĄCZENIE"
+            android:textColor="#FF9A57"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button android:id="@+id/connect1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Lampa 1" />
+            <Button android:id="@+id/connect2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Lampa 2" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button android:id="@+id/identify1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="MIGNIJ 1" />
+            <Button android:id="@+id/identify2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="MIGNIJ 2" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="STERUJ"
+            android:textColor="#FF9A57"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <RadioButton android:id="@+id/target1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lampa 1" android:textColor="#F5F7FA" />
+            <RadioButton android:id="@+id/target2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lampa 2" android:textColor="#F5F7FA" />
+            <RadioButton android:id="@+id/targetBoth" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Obie" android:textColor="#F5F7FA" android:checked="true" />
+        </RadioGroup>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Jasność" android:textColor="#F5F7FA" android:textStyle="bold" />
+        <SeekBar android:id="@+id/brightness" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="210" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button android:id="@+id/onBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ON" />
+            <Button android:id="@+id/offBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="OFF" />
+            <Button android:id="@+id/whiteBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="BIAŁE" />
+        </LinearLayout>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Biel: ciepła ↔ zimna" android:textColor="#F5F7FA" android:textStyle="bold" />
+        <SeekBar android:id="@+id/whiteTemp" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="135" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="KOLOR"
+            android:textColor="#FF9A57"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Przesuwaj palcem po palecie — kolor wysyła się na żywo"
+            android:textColor="#AEB6C2"
+            android:textSize="13sp"
+            android:paddingBottom="8dp" />
+
+        <com.bongobrygada.yn360control.ColorPaletteView
+            android:id="@+id/colorPalette"
+            android:layout_width="match_parent"
+            android:layout_height="180dp" />
+
+        <View
+            android:id="@+id/colorPreview"
+            android:layout_width="match_parent"
+            android:layout_height="12dp"
+            android:layout_marginTop="8dp"
+            android:background="#FF0000" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="R" android:textColor="#D0D5DD" />
+        <SeekBar android:id="@+id/red" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="255" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="G" android:textColor="#D0D5DD" />
+        <SeekBar android:id="@+id/green" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="0" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="B" android:textColor="#D0D5DD" />
+        <SeekBar android:id="@+id/blue" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="255" android:progress="0" />
+        <Button android:id="@+id/rgbBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="USTAW RGB" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="EFEKTY" android:textColor="#FF9A57" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Szybkość" android:textColor="#F5F7FA" android:textStyle="bold" />
+        <SeekBar android:id="@+id/fxSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="55" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <Button android:id="@+id/policeBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="POLICE" />
+            <Button android:id="@+id/discoBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="DISCO" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <Button android:id="@+id/strobeBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="STROBE" />
+            <Button android:id="@+id/flashBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="FLASH" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <Button android:id="@+id/fadeBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="COLOR FADE" />
+            <Button android:id="@+id/lightningBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="LIGHTNING" />
+        </LinearLayout>
+        <Button android:id="@+id/candleBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🔥 FIRE / CANDLE" />
+        <Button android:id="@+id/stopFxBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STOP EFEKTU" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="10dp"
+            android:paddingBottom="14dp"
+            android:text="Stroboskop i błyskawice mogą być niebezpieczne dla osób z nadwrażliwością na migające światło."
+            android:textColor="#7F8792"
+            android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>
