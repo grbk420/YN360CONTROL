@@ -15,6 +15,8 @@ public class BleLightController {
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic send;
     private volatile boolean ready = false;
+    // App-session safety gate: only explicit power ON enables colour/mode commands.
+    private volatile boolean userEnabled=false;
     private volatile int acceptedWrites=0;
     private volatile int ackWrites=0;
     private volatile int callbackWrites=0;
@@ -45,6 +47,8 @@ public class BleLightController {
     public interface Listener { void onState(String state); }
     public BleLightController(Context c, Listener l) { context = c; listener = l; }
     public boolean isReady(){ return ready; }
+    public boolean isUserEnabled(){return userEnabled;}
+    public void setUserEnabled(boolean enabled){userEnabled=enabled;}
     public void setWhiteChannel(int channel){ if(channel>=1 && channel<=8)whiteChannel=channel; }
     public int getWhiteChannel(){return whiteChannel;}
     public synchronized void setPreferResponse(boolean prefer){preferResponse=prefer;}
@@ -91,7 +95,7 @@ public class BleLightController {
     @SuppressWarnings("MissingPermission")
     public synchronized void disconnect(){
         generation++;
-        ready = false; send = null; characteristicProps=0; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++;
+        ready = false;userEnabled=false; send = null; characteristicProps=0; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++;
         lastConnection="Rozłączona";
         if(gatt != null){ try{gatt.disconnect();}catch(Exception ignored){} try{gatt.close();}catch(Exception ignored){} gatt = null; }
     }
@@ -117,7 +121,7 @@ public class BleLightController {
             } else if(newState==BluetoothProfile.STATE_DISCONNECTED || status!=BluetoothGatt.GATT_SUCCESS){
                 synchronized(BleLightController.this){
                     if(g!=gatt)return;
-                    ready=false;send=null;characteristicProps=0;queue.clear();priorityQueue.clear();writing=false;inFlightId++;generation++;
+                    ready=false;userEnabled=false;send=null;characteristicProps=0;queue.clear();priorityQueue.clear();writing=false;inFlightId++;generation++;
                 }
                 lastConnection="Rozłączona (GATT "+status+")";
                 listener.onState(lastConnection);
@@ -235,8 +239,8 @@ public class BleLightController {
 
     // YN360 protocol: 0xA3 is the actual OFF instruction (NOT 0xEE).
     // Bluetooth stays alive while the LEDs are switched off.
-    public void off(){ writeMode(new byte[]{(byte)0xAE,(byte)0xA3,0,0,0,0x56}); }
-    public void turnOn(){ writeMode(lastLitPacket.clone()); }
+    public void off(){ userEnabled=false;writeMode(new byte[]{(byte)0xAE,(byte)0xA3,0,0,0,0x56}); }
+    public void turnOn(){userEnabled=true;writeMode(lastLitPacket.clone()); }
 
     private void remember(byte[] packet){
         lastLitPacket=packet.clone();
@@ -248,24 +252,28 @@ public class BleLightController {
     }
 
     public void rgb(int r,int g,int b){
+        if(!userEnabled)return;
         int rr=clamp255(r),gg=clamp255(g),bb=clamp255(b);
         byte[] packet=new byte[]{(byte)0xAE,(byte)0xA1,(byte)rr,(byte)gg,(byte)bb,0x56};
         if(rr+gg+bb>0) remember(packet); // Never replace remembered color with black strobe frames.
         write(packet);
     }
     public void white(int cool,int warm){
+        if(!userEnabled)return;
         int c=clamp99(cool),w=clamp99(warm);
         byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,(byte)whiteChannel,(byte)c,(byte)w,0x56};
         if(c+w>0)remember(packet);
         write(packet);
     }
     public void setModeRgb(int r,int g,int b){
+        if(!userEnabled)return;
         int rr=clamp255(r),gg=clamp255(g),bb=clamp255(b);
         byte[] packet=new byte[]{(byte)0xAE,(byte)0xA1,(byte)rr,(byte)gg,(byte)bb,0x56};
         if(rr+gg+bb>0)remember(packet);
         writeMode(packet);
     }
     public void setModeWhite(int cool,int warm){
+        if(!userEnabled)return;
         int c=clamp99(cool),w=clamp99(warm);
         byte[] packet=new byte[]{(byte)0xAE,(byte)0xAA,(byte)whiteChannel,(byte)c,(byte)w,0x56};
         if(c+w>0)remember(packet);
