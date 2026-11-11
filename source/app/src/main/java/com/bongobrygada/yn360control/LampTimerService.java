@@ -22,6 +22,7 @@ public class LampTimerService extends Service {
     private static final int NOTIFICATION_ID=3608;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final long[] end={0L,0L};
+    private long shutdownGraceUntil=0L;
     private final Runnable tick=new Runnable(){@Override public void run(){runTimers();}};
     private android.content.SharedPreferences prefs;
 
@@ -92,11 +93,19 @@ public class LampTimerService extends Service {
             setDeadline(i,0);
         }
         if(expired!=0){
+            shutdownGraceUntil=System.currentTimeMillis()+18000;
+            // The UI may own an already-established BLE session; let it send OFF immediately
+            // while the service also makes a connection attempt for background reliability.
+            Intent changed=new Intent(ACTION_CHANGED).setPackage(getPackageName());
+            changed.putExtra("expired",expired);
+            sendBroadcast(changed);
             for(int i=0;i<2;i++)if((expired&(1<<i))!=0)sendOffToLamp(i);
-            broadcastChanged();
         }
         if(anyActive()){
             ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID,makeNotification());
+            handler.postDelayed(tick,1000);
+        }else if(shutdownGraceUntil>System.currentTimeMillis()){
+            // Keep the process and GATT connection alive until OFF has had time to transmit.
             handler.postDelayed(tick,1000);
         }else{
             stopForeground(STOP_FOREGROUND_REMOVE);
