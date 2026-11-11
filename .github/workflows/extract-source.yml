@@ -1,0 +1,29 @@
+name: Extract editable YN360 source
+on:
+  push:
+    paths:
+      - '.github/workflows/extract-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack v0.6 into editable source directory
+        run: |
+          rm -rf source
+          mkdir -p temp source
+          unzip -oq YN360Control_v0.6_dark_sync_palette.zip -d temp
+          cp -a temp/YN360Control_v0.6_src/. source/
+          rm -rf temp source/.github
+      - name: Commit source tree
+        run: |
+          git add source
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git diff --cached --quiet; then
+            git commit -m "Extract editable YN360 v0.6 source"
+            git push origin HEAD:main
+          fi
