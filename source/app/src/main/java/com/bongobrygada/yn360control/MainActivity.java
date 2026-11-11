@@ -43,6 +43,7 @@ public class MainActivity extends Activity {
     private CheckBox cctRgbFallback2;
     private TextView diagResults2;
     private CheckBox diagUseAck2;
+    private Spinner cctChannel2;
     private String diagLast2="Nie uruchomiono testu";
     private SharedPreferences prefs;
     private static final String PREF_L1 = "lamp1_mac";
@@ -72,6 +73,7 @@ public class MainActivity extends Activity {
         cctRgbFallback2=findViewById(R.id.cctRgbFallback2);
         diagResults2=findViewById(R.id.diagResults2);
         diagUseAck2=findViewById(R.id.diagUseAck2);
+        cctChannel2=findViewById(R.id.cctChannel2);
 
         BluetoothManager bm=(BluetoothManager)getSystemService(BLUETOOTH_SERVICE); adapter=bm.getAdapter();
         light1=new BleLightController(this, s->runOnUiThread(()->{status.setText("L1: "+s); updateButtons();}));
@@ -80,6 +82,7 @@ public class MainActivity extends Activity {
             updateButtons();
             if(diagResults2!=null) showDiag2();
         }));
+        light2.setWhiteChannel(prefs.getInt("cct_channel_2",1));
         lampEffects=new LampEffects(light1,light2);
 
         findViewById(R.id.updatesBtn).setOnClickListener(v->openUpdates());
@@ -460,6 +463,26 @@ public class MainActivity extends Activity {
     }
 
     private void setupDiagnostics2() {
+        String[] channels={"CH1","CH2","CH3","CH4","CH5","CH6","CH7","CH8"};
+        ArrayAdapter<String> channelAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,channels);
+        channelAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        cctChannel2.setAdapter(channelAdapter);
+        int savedChannel=prefs.getInt("cct_channel_2",1);
+        cctChannel2.setSelection(Math.max(0,Math.min(7,savedChannel-1)));
+        cctChannel2.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                int channel=position+1;
+                light2.setWhiteChannel(channel);
+                prefs.edit().putInt("cct_channel_2",channel).apply();
+            }
+            public void onNothingSelected(android.widget.AdapterView<?> parent){}
+        });
+        findViewById(R.id.testCctChannel2).setOnClickListener(v->{
+            int channel=cctChannel2.getSelectedItemPosition()+1;
+            light2.setWhiteChannel(channel);
+            runLamp2Test("CCT LAMPA 2 • CH"+channel,()->light2.setModeWhite(70,70));
+        });
+
         diagUseAck2.setChecked(prefs.getBoolean("lamp2_prefer_ack",false));
         light2.setPreferResponse(diagUseAck2.isChecked());
         diagUseAck2.setOnCheckedChangeListener((button,enabled)->{
@@ -479,7 +502,7 @@ public class MainActivity extends Activity {
             showDiag2();
         });
         findViewById(R.id.diagRgb2).setOnClickListener(v->runLamp2Test("RGB CZERWONY",()->light2.setModeRgb(255,0,0)));
-        findViewById(R.id.diagWhite2).setOnClickListener(v->runLamp2Test("NATYWNE CCT",()->light2.setModeWhite(50,50)));
+        findViewById(R.id.diagWhite2).setOnClickListener(v->runLamp2Test("NATYWNE CCT • CH"+light2.getWhiteChannel(),()->light2.setModeWhite(50,50)));
         findViewById(R.id.diagFallback2).setOnClickListener(v->runLamp2Test("BIEL PRZEZ RGB",()->light2.setModeRgb(255,220,180)));
         findViewById(R.id.diagReconnect2).setOnClickListener(v->{
             String addr=prefs.getString(PREF_L2,null);
@@ -498,7 +521,7 @@ public class MainActivity extends Activity {
             },500);
         });
         findViewById(R.id.diagCopy2).setOnClickListener(v->{
-            String report="YN360 Control v0.12 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
+            String report="YN360 Control v0.13 • Lampa 2\n"+diagLast2+"\n"+light2.debugSnapshot();
             android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(android.content.ClipData.newPlainText("YN360 diagnostyka L2",report));
             Toast.makeText(this,"Skopiowano diagnostykę Lampy 2",Toast.LENGTH_SHORT).show();
