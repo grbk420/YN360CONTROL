@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v0.13-stable
+          name: YN360-Control-v1.0-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish v0.8 release APK
+      - name: Publish FINAL v1.0 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v0.13.apk
-          if gh release view v0.13.0 >/dev/null 2>&1; then
-            gh release upload v0.13.0 YN360-Control-v0.13.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.0.apk
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            gh release upload v1.0.0 YN360-Control-v1.0.apk --clobber
           else
-            gh release create v0.13.0 YN360-Control-v0.13.apk \
-              --title "YN360 Control v0.13" \
-              --notes "Możliwość ręcznego wyboru kanału CCT CH1–CH8 oddzielnie dla Lampy 2. Zachowane dotychczasowe sterowanie RGB oraz diagnostyka BLE. Wymaga testu na rzeczywistej lampie. Oprogramowanie weryfikowane przez kompilator Android; działanie efektów na rzeczywistych lampach wymaga próby."
+            gh release create v1.0.0 YN360-Control-v1.0.apk \
+              --title "YN360 Control FINAL v1.0" \
+              --notes "Finalny ciemny interfejs premium, kolo kolorow RGB, niezalezne lampy, efekt cieplego plomienia, zwijany timer na dole i panel diagnostyki. Zachowany podpis do aktualizacji istniejącej aplikacji. Sterowanie BLE wymaga sprawdzenia na fizycznych lampach."
           fi

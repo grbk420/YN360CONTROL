@@ -167,12 +167,15 @@ public final class LampEffects {
                     break;
                 }
                 case CANDLE: {
-                    int red=235+random.nextInt(21);
-                    int green=30+random.nextInt(78);
-                    int blue=random.nextInt(13);
-                    if(random.nextInt(9)==0) green=26;
-                    rgb(mask,red,green,blue);
-                    delay=pace(speed,430,230)+random.nextInt(80);
+                    // Soft amber flicker, deliberately avoiding white LED-like flashes.
+                    float glow=(float)((Math.sin(step++*.57)+1d)*.5d);
+                    float level=.64f+.25f*glow+.11f*random.nextFloat();
+                    if(random.nextInt(18)==0) level*=.76f;
+                    int rr=clamp(Math.round(255*level),0,255);
+                    int gg=clamp(Math.round((89+random.nextInt(38))*level),0,155);
+                    int bb=random.nextInt(5);
+                    rgb(mask,rr,gg,bb);
+                    delay=pace(speed,480,260)+random.nextInt(55);
                     break;
                 }
                 case OCEAN: {
