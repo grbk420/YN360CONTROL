@@ -17,6 +17,7 @@ public class BleLightController {
     private volatile boolean ready = false;
     // App-session safety gate: only explicit power ON enables colour/mode commands.
     private volatile boolean userEnabled=false;
+    private volatile boolean turboStrobe=false;
     private volatile int acceptedWrites=0;
     private volatile int ackWrites=0;
     private volatile int callbackWrites=0;
@@ -49,6 +50,8 @@ public class BleLightController {
     public boolean isReady(){ return ready; }
     public boolean isUserEnabled(){return userEnabled;}
     public void setUserEnabled(boolean enabled){userEnabled=enabled;}
+    /** Faster pacing is only used with no-response writes while turbo is active. */
+    public synchronized void setTurboStrobe(boolean enabled){turboStrobe=enabled; if(enabled)queue.clear();}
     public void setWhiteChannel(int channel){ if(channel>=1 && channel<=8)whiteChannel=channel; }
     public int getWhiteChannel(){return whiteChannel;}
     public synchronized void setPreferResponse(boolean prefer){preferResponse=prefer;}
@@ -95,7 +98,7 @@ public class BleLightController {
     @SuppressWarnings("MissingPermission")
     public synchronized void disconnect(){
         generation++;
-        ready = false;userEnabled=false; send = null; characteristicProps=0; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++;
+        ready = false;userEnabled=false;turboStrobe=false; send = null; characteristicProps=0; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++;
         lastConnection="Rozłączona";
         if(gatt != null){ try{gatt.disconnect();}catch(Exception ignored){} try{gatt.close();}catch(Exception ignored){} gatt = null; }
     }
@@ -121,7 +124,7 @@ public class BleLightController {
             } else if(newState==BluetoothProfile.STATE_DISCONNECTED || status!=BluetoothGatt.GATT_SUCCESS){
                 synchronized(BleLightController.this){
                     if(g!=gatt)return;
-                    ready=false;userEnabled=false;send=null;characteristicProps=0;queue.clear();priorityQueue.clear();writing=false;inFlightId++;generation++;
+                    ready=false;userEnabled=false;turboStrobe=false;send=null;characteristicProps=0;queue.clear();priorityQueue.clear();writing=false;inFlightId++;generation++;
                 }
                 lastConnection="Rozłączona (GATT "+status+")";
                 listener.onState(lastConnection);
@@ -161,7 +164,9 @@ public class BleLightController {
 
     public synchronized void write(byte[] data){
         if(!ready || gatt==null || send==null) return;
-        while(queue.size()>4) queue.pollFirst();
+        // A fast strobe must not build a long FIFO of obsolete ON/OFF frames.
+        if(turboStrobe && canUseNoResponse() && !preferResponse)queue.clear();
+        else while(queue.size()>4)queue.pollFirst();
         queue.offerLast(data.clone());
         drain();
     }
@@ -230,7 +235,7 @@ public class BleLightController {
         if(noResponse)noResponseWrites++;else responseWrites++;
         if(noResponse){
             // No-response writes have no guaranteed completion callback.
-            io.postDelayed(()->finishWrite(ticket),145);
+            io.postDelayed(()->finishWrite(ticket),turboStrobe?78:145);
         }else{
             // Recover from a missing BLE callback rather than permanently freezing this lamp.
             io.postDelayed(()->finishWrite(ticket),1100);
@@ -255,7 +260,7 @@ public class BleLightController {
         if(!userEnabled)return;
         int rr=clamp255(r),gg=clamp255(g),bb=clamp255(b);
         byte[] packet=new byte[]{(byte)0xAE,(byte)0xA1,(byte)rr,(byte)gg,(byte)bb,0x56};
-        if(rr+gg+bb>0) remember(packet); // Never replace remembered color with black strobe frames.
+        if(rr+gg+bb>0 && !turboStrobe) remember(packet); // Do not replace remembered colour with strobe flashes.
         write(packet);
     }
     public void white(int cool,int warm){

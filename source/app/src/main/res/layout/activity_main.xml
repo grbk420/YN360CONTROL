@@ -4,7 +4,7 @@
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
 <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✦ YN360" android:textSize="25sp" android:textColor="#F5F7FF" android:textStyle="bold" />
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STUDIO LIGHT  •  v1.3" android:textSize="11sp" android:textColor="#A778FF" android:textStyle="bold" android:letterSpacing="0.14"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STUDIO LIGHT  •  v1.4" android:textSize="11sp" android:textColor="#A778FF" android:textStyle="bold" android:letterSpacing="0.14"/>
 </LinearLayout>
 <Button android:id="@+id/updatesBtn" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="↻ Wersje" android:textSize="12sp" android:textAllCaps="false" android:backgroundTint="#282043" android:textColor="#F5F7FF"/>
 </LinearLayout>
@@ -79,6 +79,19 @@
 </LinearLayout>
 <Button android:id="@+id/duoWaveBtn" android:layout_width="match_parent" android:layout_height="50dp" android:layout_margin="3dp" android:text="∞ Duo Wave • Dwa kolory na dwóch lampach" android:textAllCaps="false" android:textColor="#FFFFFF" android:backgroundTint="#374770"/>
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Sceny działają w tle przy aktywnym powiadomieniu o sterowaniu Bluetooth." android:textSize="11sp" android:textColor="#A4B5D0" android:layout_marginTop="4dp" android:layout_marginBottom="6dp"/>
+<Button android:id="@+id/turboStrobeBtn"
+    android:layout_width="match_parent"
+    android:layout_height="50dp"
+    android:layout_marginTop="5dp"
+    android:layout_marginBottom="5dp"
+    android:text="⚡ STROBE TURBO • szybsze błyski"
+    android:textAllCaps="false"
+    android:textSize="13sp"
+    android:textColor="#FFFFFF"
+    android:backgroundTint="#7C3457"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:text="Turbo: cel do ok. 5–6 błysków/s na maksymalnej szybkości, tylko gdy Bluetooth i lampa nadążają. Uwaga: intensywne miganie."
+    android:textSize="11sp" android:textColor="#F1B4C5" android:layout_marginBottom="8dp"/>
 <Button android:id="@+id/stopFxBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="2dp" android:text="■ Zatrzymaj efekt" android:textAllCaps="false" android:textSize="13sp" android:minHeight="42dp" android:backgroundTint="#5B233E" android:textColor="#F5F7FF" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Uwaga: Strobe, Flash i Lightning mogą wywołać reakcje u osób wrażliwych na migające światło." android:textSize="11sp" android:textColor="#9CA9C4"  android:paddingTop="7dp"/></LinearLayout>
 <LinearLayout android:id="@+id/timerSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="6dp" android:layout_marginBottom="14dp" android:background="@drawable/card_surface">
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="AUTOMATYZACJA" android:textColor="#A8A1F8" android:textStyle="bold" android:letterSpacing="0.12" android:textSize="11sp"/>
@@ -103,7 +116,7 @@
 </LinearLayout>
 </LinearLayout>
 <Space android:layout_width="1dp" android:layout_height="18dp"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="YN360 CONTROL • STUDIO v1.3 • BONGO BRYGADA" android:textSize="11sp" android:textColor="#65718D"  android:gravity="center"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="YN360 CONTROL • STUDIO v1.4 • BONGO BRYGADA" android:textSize="11sp" android:textColor="#65718D"  android:gravity="center"/>
 <Space android:layout_width="1dp" android:layout_height="12dp"/>
 </LinearLayout>
 </ScrollView>

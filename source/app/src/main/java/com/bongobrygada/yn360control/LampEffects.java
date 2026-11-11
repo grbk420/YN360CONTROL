@@ -14,7 +14,7 @@ import java.util.Random;
  */
 public final class LampEffects {
     public enum Kind {
-        POLICE, DISCO, STROBE, FLASH, FADE, LIGHTNING, CANDLE,
+        POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
         OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, IDENTIFY
     }
 
@@ -45,6 +45,7 @@ public final class LampEffects {
                 touched.add(s);
             }
             lamps[i].cancelPending();
+            lamps[i].setTurboStrobe(false);
         }
         for (Session s: touched) if (s.mask == 0) handler.removeCallbacks(s);
     }
@@ -56,7 +57,10 @@ public final class LampEffects {
         if (connectedMask == 0) return 0;
         stop(connectedMask);
         Session s = new Session(kind,connectedMask,brightness,speed,colorR,colorG,colorB);
-        for (int i=0;i<2;i++) if ((connectedMask & (1<<i)) != 0) owner[i] = s;
+        for (int i=0;i<2;i++) if ((connectedMask & (1<<i)) != 0) {
+            owner[i]=s;
+            lamps[i].setTurboStrobe(kind==Kind.STROBE_TURBO);
+        }
         handler.post(s);
         return connectedMask;
     }
@@ -111,6 +115,14 @@ public final class LampEffects {
                     else rgb(mask,0,0,0);
                     step++;
                     delay=320;
+                    break;
+                }
+                case STROBE_TURBO: {
+                    // Target 90 ms per ON/OFF frame: ~5.6 cycles/sec when BLE supports
+                    // WRITE_NO_RESPONSE. Older lamps/firmware may be slower in practice.
+                    boolean on=(step++ & 1)==0;
+                    rgb(mask,on?255:0,on?255:0,on?255:0);
+                    delay=pace(speed,260,90);
                     break;
                 }
                 case STROBE: {
@@ -289,7 +301,7 @@ public final class LampEffects {
                 }
                 default: return;
             }
-            if(mask!=0) handler.postDelayed(this,Math.max(150,delay));
+            if(mask!=0) handler.postDelayed(this,Math.max(kind==Kind.STROBE_TURBO?90:150,delay));
         }
     }
 }

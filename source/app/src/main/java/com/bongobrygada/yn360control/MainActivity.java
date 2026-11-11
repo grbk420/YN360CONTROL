@@ -126,6 +126,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.policeBtn).setOnClickListener(v->startPolice());
         findViewById(R.id.discoBtn).setOnClickListener(v->startDisco());
         findViewById(R.id.strobeBtn).setOnClickListener(v->startStrobe());
+        findViewById(R.id.turboStrobeBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE_TURBO,"STROBE TURBO ⚠"));
         findViewById(R.id.flashBtn).setOnClickListener(v->startFlash());
         findViewById(R.id.fadeBtn).setOnClickListener(v->startFade());
         findViewById(R.id.lightningBtn).setOnClickListener(v->startLightning());
