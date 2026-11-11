@@ -17,6 +17,14 @@ public class BleLightController {
     private volatile boolean ready = false;
     private volatile int acceptedWrites=0;
     private volatile int ackWrites=0;
+    private volatile int callbackWrites=0;
+    private volatile int noResponseWrites=0;
+    private volatile int responseWrites=0;
+    private volatile int characteristicProps=0;
+    private volatile int lastWriteType=0; // 1=no response, 2=response
+    private volatile int lastRequestCode=-1;
+    private volatile String lastPacket="—";
+    private volatile boolean preferResponse=false;
     private volatile int failedWrites=0;
     private volatile int lastGattStatus=-1;
     private volatile String lastCommand="—";
@@ -36,11 +44,26 @@ public class BleLightController {
     public interface Listener { void onState(String state); }
     public BleLightController(Context c, Listener l) { context = c; listener = l; }
     public boolean isReady(){ return ready; }
+    public synchronized void setPreferResponse(boolean prefer){preferResponse=prefer;}
+    public boolean canUseResponse(){return (characteristicProps&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0;}
+    public boolean canUseNoResponse(){return (characteristicProps&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0;}
+    private String availableWriteTypes(){
+        if(!ready)return "brak";
+        String response=canUseResponse()?"WRITE":"";
+        String nr=canUseNoResponse()?"WRITE_NO_RESPONSE":"";
+        return response+(response.length()>0&&nr.length()>0?" + ":"")+nr;
+    }
     public String debugSnapshot(){
         String address=deviceAddress==null?"nieprzypisana":deviceAddress.substring(Math.max(0,deviceAddress.length()-8));
+        String writeMode=lastWriteType==1?"BEZ POTWIERDZENIA":lastWriteType==2?"Z POTWIERDZENIEM":"brak zapisu";
         return (ready?"GOTOWA":"NIEPOŁĄCZONA")+" • "+address+"\n"
-            +"BLE przyjęte: "+acceptedWrites+"  ACK: "+ackWrites+"  błędy: "+failedWrites
-            +"\nOstatnia komenda: "+lastCommand+" • GATT: "+lastGattStatus+"\n"+lastConnection;
+            +"Cechy GATT: 0x"+Integer.toHexString(characteristicProps).toUpperCase(java.util.Locale.US)
+            +" ("+availableWriteTypes()+")\n"
+            +"Tryb ostatniego zapisu: "+writeMode+" • wymuszaj ACK: "+(preferResponse?"TAK":"NIE")+"\n"
+            +"Przyjęte żądania: "+acceptedWrites+"  zapis z ACK: "+responseWrites+"  bez ACK: "+noResponseWrites+"\n"
+            +"Callbacki: "+callbackWrites+"  ACK w trybie WRITE: "+ackWrites+"  błędy: "+failedWrites+"\n"
+            +"Ostatnia ramka: "+lastPacket+" • zwrot Android: "+lastRequestCode+" • GATT: "+lastGattStatus+"\n"
+            +lastConnection;
     }
 
     @SuppressWarnings("MissingPermission")
@@ -65,7 +88,7 @@ public class BleLightController {
     @SuppressWarnings("MissingPermission")
     public synchronized void disconnect(){
         generation++;
-        ready = false; send = null; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++;
+        ready = false; send = null; characteristicProps=0; queue.clear(); priorityQueue.clear(); writing=false; inFlightId++;
         lastConnection="Rozłączona";
         if(gatt != null){ try{gatt.disconnect();}catch(Exception ignored){} try{gatt.close();}catch(Exception ignored){} gatt = null; }
     }
@@ -91,7 +114,7 @@ public class BleLightController {
             } else if(newState==BluetoothProfile.STATE_DISCONNECTED || status!=BluetoothGatt.GATT_SUCCESS){
                 synchronized(BleLightController.this){
                     if(g!=gatt)return;
-                    ready=false;send=null;queue.clear();priorityQueue.clear();writing=false;inFlightId++;generation++;
+                    ready=false;send=null;characteristicProps=0;queue.clear();priorityQueue.clear();writing=false;inFlightId++;generation++;
                 }
                 lastConnection="Rozłączona (GATT "+status+")";
                 listener.onState(lastConnection);
@@ -103,22 +126,29 @@ public class BleLightController {
             if(s==null){ listener.onState("Nie znaleziono usługi YN360"); return; }
             send=s.getCharacteristic(SEND_UUID);
             if(send==null){ listener.onState("Nie znaleziono kanału sterowania"); return; }
-            ready=true;lastConnection="Gotowa, kanał GATT znaleziony";listener.onState("Gotowa ✓");
+            characteristicProps=send.getProperties();
+            ready=true;
+            lastConnection="Gotowa, kanał GATT znaleziony";
+            listener.onState("Gotowa ✓");
         }
         @Override public void onCharacteristicWrite(BluetoothGatt g, BluetoothGattCharacteristic c, int status){
             final int ticket;
+            final boolean waitResponse;
             synchronized(BleLightController.this){
-                if(g!=gatt || !writing || inFlightNoResponse)return;
-                ticket=inFlightId;
+                if(g!=gatt)return;
+                callbackWrites++;
                 lastGattStatus=status;
-                if(status==BluetoothGatt.GATT_SUCCESS)ackWrites++;
-                else{
+                waitResponse=writing && !inFlightNoResponse;
+                ticket=inFlightId;
+                if(status==BluetoothGatt.GATT_SUCCESS){
+                    if(waitResponse)ackWrites++;
+                }else{
                     failedWrites++;
                     lastConnection="Błąd zapisu GATT "+status;
                     listener.onState(lastConnection);
                 }
             }
-            io.postDelayed(()->finishWrite(ticket),60);
+            if(waitResponse)io.postDelayed(()->finishWrite(ticket),60);
         }
     };
 
@@ -151,21 +181,36 @@ public class BleLightController {
         byte[] data=priorityQueue.isEmpty()?queue.pollFirst():priorityQueue.pollFirst();
         lastCommand=String.format(java.util.Locale.US,"%02X",data[1]&255);
         int props=send.getProperties();
-        boolean noResponse=(props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0;
+        boolean supportsResponse=(props&BluetoothGattCharacteristic.PROPERTY_WRITE)!=0;
+        boolean supportsNoResponse=(props&BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)!=0;
+        if(!supportsResponse && !supportsNoResponse){
+            failedWrites++;
+            lastConnection="Brak możliwości zapisu GATT";
+            listener.onState(lastConnection);
+            return;
+        }
+        // Prefer response only when explicitly enabled AND supported.
+        boolean noResponse=supportsNoResponse && !(preferResponse && supportsResponse);
         int type=noResponse?BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE:BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+        lastWriteType=type;
+        lastPacket=String.format(java.util.Locale.US,"%02X %02X %02X %02X %02X %02X",
+            data[0]&255,data[1]&255,data[2]&255,data[3]&255,data[4]&255,data[5]&255);
         int ticket=++inFlightId;
         writing=true;
         inFlightNoResponse=noResponse;
         boolean accepted=false;
+        lastRequestCode=-1;
         try{
             if(Build.VERSION.SDK_INT>=33) {
-                accepted=gatt.writeCharacteristic(send,data,type)==BluetoothStatusCodes.SUCCESS;
+                lastRequestCode=gatt.writeCharacteristic(send,data,type);
+                accepted=lastRequestCode==BluetoothStatusCodes.SUCCESS;
             }else{
                 send.setWriteType(type);
                 send.setValue(data);
                 accepted=gatt.writeCharacteristic(send);
+                lastRequestCode=accepted?0:-1;
             }
-        }catch(Exception ignored){}
+        }catch(Exception ignored){lastRequestCode=-2;}
         if(!accepted){
             failedWrites++;
             lastConnection="Android odmówił zapisu";
@@ -175,6 +220,7 @@ public class BleLightController {
             return;
         }
         acceptedWrites++;
+        if(noResponse)noResponseWrites++;else responseWrites++;
         if(noResponse){
             // No-response writes have no guaranteed completion callback.
             io.postDelayed(()->finishWrite(ticket),145);
