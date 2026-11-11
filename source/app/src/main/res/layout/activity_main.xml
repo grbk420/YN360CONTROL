@@ -4,7 +4,7 @@
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
 <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✦ YN360 CONTROL" android:textSize="23sp" android:textColor="#F5F7FF" android:textStyle="bold" />
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STUDIO LIGHT  •  v0.10" android:textSize="11sp" android:textColor="#A778FF" android:textStyle="bold" android:letterSpacing="0.14"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STUDIO LIGHT  •  v0.11" android:textSize="11sp" android:textColor="#A778FF" android:textStyle="bold" android:letterSpacing="0.14"/>
 </LinearLayout>
 <Button android:id="@+id/updatesBtn" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="↻ Aktualizacje" android:textSize="12sp" android:textAllCaps="false" android:backgroundTint="#282043" android:textColor="#F5F7FF"/>
 </LinearLayout>
