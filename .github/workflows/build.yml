@@ -36,14 +36,14 @@ jobs:
         run: |
           rm -rf buildsrc
           mkdir buildsrc
-          unzip -o YN360Control_v0.5_protocol_fix.zip -d buildsrc
+          unzip -o YN360Control_v0.6_dark_sync_palette.zip -d buildsrc
 
       - name: Build APK
-        working-directory: buildsrc/YN360Control_v0.5_src
+        working-directory: buildsrc/YN360Control_v0.6_src
         run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v0.5
-          path: buildsrc/YN360Control_v0.5_src/app/build/outputs/apk/debug/app-debug.apk
+          name: YN360-Control-v0.6
+          path: buildsrc/YN360Control_v0.6_src/app/build/outputs/apk/debug/app-debug.apk
