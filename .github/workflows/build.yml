@@ -39,11 +39,11 @@ jobs:
           unzip -o YN360Control_v0.4_names_identify.zip -d buildsrc
 
       - name: Build APK
-        working-directory: buildsrc/YN360Control
+        working-directory: buildsrc/YN360Control_v0.4_src
         run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: YN360-Control-v0.4
-          path: buildsrc/YN360Control/app/build/outputs/apk/debug/app-debug.apk
+          path: buildsrc/YN360Control_v0.4_src/app/build/outputs/apk/debug/app-debug.apk
