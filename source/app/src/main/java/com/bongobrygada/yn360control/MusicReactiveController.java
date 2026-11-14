@@ -75,6 +75,9 @@ public final class MusicReactiveController {
         activity=(int)Math.min(100,energy*100);
         if(now-lastFrame<145)return; // BLE: at most about 7 new RGB frames/s per lamp
         lastFrame=now;
+        // Hold a detected onset briefly: the BLE frame gate must not miss a kick.
+        boolean kickActive=now-lastKick<170;
+        boolean hatActive=now-lastHat<170;
 
         for(int i=0;i<2;i++){
             int bit=1<<i;
@@ -86,11 +89,11 @@ public final class MusicReactiveController {
             float hue=196f, sat=.95f;
             double level=.10+.48*energy;
             if(m==BASS_REACTOR){
-                hue=kick?16f:210f;
-                level=kick?.98:.09+.29*energy;
+                hue=kickActive?16f:210f;
+                level=kickActive?.98:.09+.29*energy;
             }else if(m==CLUB_DUO){
                 hue=i==0?355f:188f;
-                boolean accent=(i==0?kick:hat);
+                boolean accent=(i==0?kickActive:hatActive);
                 level=accent?.98:.07+.22*energy;
             }else if(m==SPECTRUM){
                 // Highs and bass deliberately control different colour families.
@@ -102,7 +105,7 @@ public final class MusicReactiveController {
                 hue=(ambientHue+(i==1?115f:0f))%360f;
                 level=.14+.45*energy;
             }else if(m==DROP_HUNTER){
-                boolean surge=kick && bass>formerBass*2.1d;
+                boolean surge=kickActive && bass>formerBass*1.85d;
                 if(surge && now-lastDrop>800)lastDrop=now;
                 boolean drop=now-lastDrop<220;
                 hue=drop?48f:(i==0?284f:195f);
