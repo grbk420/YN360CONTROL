@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v1.8-final
+          name: YN360-Control-v1.9-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish FINAL v1.8 APK
+      - name: Publish FINAL v1.9 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.8.apk
-          if gh release view v1.8.0 >/dev/null 2>&1; then
-            gh release upload v1.8.0 YN360-Control-v1.8.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.9.apk
+          if gh release view v1.9.0 >/dev/null 2>&1; then
+            gh release upload v1.9.0 YN360-Control-v1.9.apk --clobber
           else
-            gh release create v1.8.0 YN360-Control-v1.8.apk \
-              --title "YN360 Control FINAL v1.8" \
-              --notes "Music lighting v1.8: timed 120, 125 and 130 BPM beats plus House Chase, Techno Kick, Disco Rainbow, EDM Drop, Bass Bounce, Kick Snare, Duo Ping Pong; SYNC button aligns beat phase manually. No microphone listening. Strobe Rapid experimental plus monotonic timing for Turbo/Snap. BLE hardware timing may differ and rapid flashes are unsuitable for photosensitive people."
+            gh release create v1.9.0 YN360-Control-v1.9.apk \
+              --title "YN360 Control FINAL v1.9" \
+              --notes "YN360 Studio v1.9: MUSIC LIVE microphone reactive Bluetooth scenes (Bass Reactor, Club Duo, Sound Spectrum, Ambient Audio, Drop Hunter), sensitivity, explicit microphone permission, foreground service for screen-off; no audio storage. Six collapsible categories retain original presets. Four distinct scenes: Traffic Neon, Comet Trail, Heartbeat Duo and 20-minute Sunrise. Existing app signature and manual ON retained. Live mic and physical lamps still require device testing."
           fi
