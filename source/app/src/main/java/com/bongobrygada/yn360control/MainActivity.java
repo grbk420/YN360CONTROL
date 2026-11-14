@@ -25,6 +25,11 @@ public class MainActivity extends Activity {
     private int paletteR=255, paletteG=0, paletteB=0;
     private LampEffects lampEffects;
     private SeekBar micSensitivity;
+    private SeekBar bpmSlider;
+    private EditText bpmInput;
+    private TextView bpmValue,tapBpmResult;
+    private final ArrayDeque<Long> recentTaps=new ArrayDeque<>();
+    private int selectedBpm=125;
     private TextView musicStatus;
     private static final int MIC_REQUEST=306;
     private int pendingMicMode=-1,pendingMicMask=0;
@@ -161,16 +166,15 @@ public class MainActivity extends Activity {
         findViewById(R.id.fireIceBtn).setOnClickListener(v->startScene(LampEffects.Kind.FIRE_ICE,"FIRE & ICE"));
         findViewById(R.id.pixelPartyBtn).setOnClickListener(v->startScene(LampEffects.Kind.PIXEL_PARTY,"PIXEL PARTY"));
         findViewById(R.id.electricStormBtn).setOnClickListener(v->startScene(LampEffects.Kind.ELECTRIC_STORM,"ELECTRIC STORM"));
-        findViewById(R.id.beat120Btn).setOnClickListener(v->startScene(LampEffects.Kind.BEAT_120,"BEAT 120 BPM"));
-        findViewById(R.id.beat125Btn).setOnClickListener(v->startScene(LampEffects.Kind.BEAT_125,"BEAT 125 BPM"));
-        findViewById(R.id.beat130Btn).setOnClickListener(v->startScene(LampEffects.Kind.BEAT_130,"BEAT 130 BPM"));
-        findViewById(R.id.houseChaseBtn).setOnClickListener(v->startScene(LampEffects.Kind.HOUSE_CHASE,"HOUSE CHASE 125 BPM"));
-        findViewById(R.id.technoKickBtn).setOnClickListener(v->startScene(LampEffects.Kind.TECHNO_KICK,"TECHNO KICK 125 BPM"));
-        findViewById(R.id.discoRainbowBtn).setOnClickListener(v->startScene(LampEffects.Kind.DISCO_RAINBOW,"DISCO RAINBOW 125 BPM"));
-        findViewById(R.id.edmDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.EDM_DROP,"EDM DROP 125 BPM"));
-        findViewById(R.id.bassBounceBtn).setOnClickListener(v->startScene(LampEffects.Kind.BASS_BOUNCE,"BASS BOUNCE 125 BPM"));
-        findViewById(R.id.kickSnareBtn).setOnClickListener(v->startScene(LampEffects.Kind.KICK_SNARE,"KICK & SNARE 125 BPM"));
-        findViewById(R.id.duoPingpongBtn).setOnClickListener(v->startScene(LampEffects.Kind.DUO_PINGPONG,"DUO PING PONG 125 BPM"));
+        findViewById(R.id.beatCustomBtn).setOnClickListener(v->
+            startScene(LampEffects.Kind.BEAT_125,"BEAT "+selectedBpm+" BPM"));
+        findViewById(R.id.houseChaseBtn).setOnClickListener(v->startScene(LampEffects.Kind.HOUSE_CHASE,"HOUSE CHASE "+selectedBpm+" BPM"));
+        findViewById(R.id.technoKickBtn).setOnClickListener(v->startScene(LampEffects.Kind.TECHNO_KICK,"TECHNO KICK "+selectedBpm+" BPM"));
+        findViewById(R.id.discoRainbowBtn).setOnClickListener(v->startScene(LampEffects.Kind.DISCO_RAINBOW,"DISCO RAINBOW "+selectedBpm+" BPM"));
+        findViewById(R.id.edmDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.EDM_DROP,"EDM DROP "+selectedBpm+" BPM"));
+        findViewById(R.id.bassBounceBtn).setOnClickListener(v->startScene(LampEffects.Kind.BASS_BOUNCE,"BASS BOUNCE "+selectedBpm+" BPM"));
+        findViewById(R.id.kickSnareBtn).setOnClickListener(v->startScene(LampEffects.Kind.KICK_SNARE,"KICK & SNARE "+selectedBpm+" BPM"));
+        findViewById(R.id.duoPingpongBtn).setOnClickListener(v->startScene(LampEffects.Kind.DUO_PINGPONG,"DUO PING PONG "+selectedBpm+" BPM"));
         findViewById(R.id.strobeRapidBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE_RAPID,"STROBE RAPID"));
         findViewById(R.id.syncBeatBtn).setOnClickListener(v->{
             int selected=selectedMask();
@@ -244,6 +248,7 @@ public class MainActivity extends Activity {
         selectTarget(prefs.getInt("target_mask",1));
         setupCollapsibleSections();
         setupFxCategories();
+        setupBpmControls();
         new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 900);
     }
 
@@ -916,6 +921,111 @@ public class MainActivity extends Activity {
             status.setText(name+" • "+targetLabel(actual)+" • działa w tle");
         }
     }
+    /** Tempo works even when both lamps are off; no Bluetooth write until an effect is started. */
+    private void setupBpmControls(){
+        bpmSlider=findViewById(R.id.bpmSlider);
+        bpmInput=findViewById(R.id.bpmInput);
+        bpmValue=findViewById(R.id.bpmValue);
+        tapBpmResult=findViewById(R.id.tapBpmResult);
+        selectedBpm=Math.max(40,Math.min(200,prefs.getInt("custom_bpm",125)));
+        lampEffects.setMusicBpm(selectedBpm);
+        bpmSlider.setProgress(selectedBpm-40);
+        bpmInput.setText(String.valueOf(selectedBpm));
+        bpmValue.setText(selectedBpm+" BPM");
+        bpmSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar bar,int p,boolean fromUser){
+                if(fromUser)setSelectedBpm(p+40);
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar){}
+            @Override public void onStopTrackingTouch(SeekBar bar){}
+        });
+        findViewById(R.id.bpmApplyBtn).setOnClickListener(v->applyBpmFromInput());
+        bpmInput.setOnEditorActionListener((text,action,event)->{
+            applyBpmFromInput();
+            return true;
+        });
+        findViewById(R.id.bpmMinusBtn).setOnClickListener(v->setSelectedBpm(selectedBpm-1));
+        findViewById(R.id.bpmPlusBtn).setOnClickListener(v->setSelectedBpm(selectedBpm+1));
+        findViewById(R.id.tapTempoBtn).setOnClickListener(v->tapTempo());
+        findViewById(R.id.tapResetBtn).setOnClickListener(v->{
+            recentTaps.clear();
+            tapBpmResult.setText("Pomiar wyczyszczony • wystukaj minimum 4 razy");
+        });
+    }
+
+    private void setSelectedBpm(int bpm){
+        selectedBpm=Math.max(40,Math.min(200,bpm));
+        lampEffects.setMusicBpm(selectedBpm);
+        bpmValue.setText(selectedBpm+" BPM");
+        if(bpmSlider.getProgress()!=selectedBpm-40)
+            bpmSlider.setProgress(selectedBpm-40);
+        String desired=String.valueOf(selectedBpm);
+        if(!bpmInput.getText().toString().equals(desired))
+            bpmInput.setText(desired);
+        prefs.edit().putInt("custom_bpm",selectedBpm).apply();
+    }
+
+    private void applyBpmFromInput(){
+        try{
+            String raw=bpmInput.getText().toString().trim();
+            if(raw.length()==0)throw new NumberFormatException();
+            int entered=Integer.parseInt(raw);
+            if(entered<40||entered>200){
+                tapBpmResult.setText("Wpisz BPM z zakresu 40–200");
+                return;
+            }
+            setSelectedBpm(entered);
+            tapBpmResult.setText("Ustawiono "+selectedBpm+" BPM • aktywne efekty dopasowane");
+            ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE))
+                .hideSoftInputFromWindow(bpmInput.getWindowToken(),0);
+            bpmInput.clearFocus();
+        }catch(NumberFormatException invalid){
+            tapBpmResult.setText("Podaj liczbę od 40 do 200 BPM");
+        }
+    }
+
+    /** Tap Tempo measures the interval between recent finger taps using monotonic time.
+     * Outlying fastest and slowest intervals are removed when enough samples exist.
+     * Four taps (3 gaps) are needed to update the beat, avoiding guesswork from one tap.
+     */
+    private void tapTempo(){
+        long now=SystemClock.elapsedRealtime();
+        if(!recentTaps.isEmpty()){
+            long gap=now-recentTaps.peekLast();
+            if(gap>2300L)recentTaps.clear();
+            else if(gap<225L)return; // double taps are not counted
+        }
+        recentTaps.addLast(now);
+        while(recentTaps.size()>9)recentTaps.removeFirst();
+        if(recentTaps.size()<4){
+            tapBpmResult.setText("TAP BPM • "+recentTaps.size()+
+                "/4 • stukaj w każde uderzenie basu");
+            return;
+        }
+        long[] intervals=new long[recentTaps.size()-1];
+        long previous=-1;
+        int n=0;
+        for(long timestamp:recentTaps){
+            if(previous>=0)intervals[n++]=timestamp-previous;
+            previous=timestamp;
+        }
+        java.util.Arrays.sort(intervals);
+        int start=n>=5?1:0,end=n>=5?n-1:n;
+        double sum=0;
+        for(int i=start;i<end;i++)sum+=intervals[i];
+        double average=sum/(end-start);
+        int measured=(int)Math.round(60000d/average);
+        if(measured<40||measured>200){
+            tapBpmResult.setText("Wystukano około "+measured+
+                " BPM • poza skalą 40–200. Spróbuj równo do ćwierćnut.");
+            return;
+        }
+        setSelectedBpm(measured);
+        boolean aligned=lampEffects.syncMusic(selectedMask());
+        tapBpmResult.setText("TAP BPM: "+measured+
+            " • "+n+" odstępy • "+(aligned?"zsynchronizowano lampy":"tempo gotowe do uruchomienia"));
+    }
+
     /** Only one preset category is visible at once. This keeps a large library manageable. */
     private void setupFxCategories(){
         final int[] headers={
