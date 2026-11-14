@@ -129,7 +129,7 @@
 </LinearLayout>
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
 <Button android:id="@+id/toxicGlowBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:layout_margin="2dp" android:minHeight="44dp" android:text="☣ Toxic Glow" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#365834"/>
-<Button android:id="@+id/fireIceBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:layout_margin="2dp" android:minHeight="44dp" android:text="♨ Fire & Ice" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#654149"/>
+<Button android:id="@+id/fireIceBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:layout_margin="2dp" android:minHeight="44dp" android:text="♨ Fire &amp; Ice" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#654149"/>
 </LinearLayout>
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
 <Button android:id="@+id/pixelPartyBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:layout_margin="2dp" android:minHeight="44dp" android:text="▣ Pixel Party" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#574069"/>
