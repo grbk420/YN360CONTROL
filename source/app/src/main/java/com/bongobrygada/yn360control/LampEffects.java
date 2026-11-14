@@ -43,6 +43,8 @@ public final class LampEffects {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Random random = new Random();
     private final Session[] owner = new Session[2];
+    /** Shared music tempo for every manually paced club preset (40–200 BPM). */
+    private volatile int musicBpm=125;
 
     public LampEffects(BleLightController one, BleLightController two) {
         lamps = new BleLightController[]{one, two};
@@ -85,6 +87,26 @@ public final class LampEffects {
         handler.post(s);
         return connectedMask;
     }
+
+    /** Update every running BPM preset without restarting its colour cycle or losing beat phase. */
+    public void setMusicBpm(int value){
+        int next=clamp(value,40,200);
+        musicBpm=next;
+        HashSet<Session> unique=new HashSet<>();
+        for(Session session:owner){
+            if(session!=null && isMusic(session.kind))unique.add(session);
+        }
+        for(Session session:unique){
+            long now=SystemClock.uptimeMillis();
+            int before=session.bpm;
+            if(before==next)continue;
+            double beatPosition=Math.max(0,now-session.startedAt)*before/60000d;
+            session.startedAt=now-Math.round(beatPosition*60000d/next);
+            session.bpm=next;
+            session.lastMusicFrame=Long.MIN_VALUE;
+        }
+    }
+    public int getMusicBpm(){return musicBpm;}
 
     /** Tap on a known kick/downbeat to align an existing manually paced music scene. */
     public boolean syncMusic(int mask){
@@ -174,6 +196,7 @@ public final class LampEffects {
         volatile int mask;
         final int brightness;
         volatile int speed;
+        volatile int bpm;
         final int userR,userG,userB;
         int step=0;
         int burst=0;
@@ -185,6 +208,7 @@ public final class LampEffects {
         Session(Kind k,int m,int b,int s,int r,int g,int bl) {
             kind=k; mask=m; brightness=clamp(b,0,255);
             speed=clamp(s,0,100);
+            bpm=musicBpm;
             userR=clamp(r,0,255); userG=clamp(g,0,255); userB=clamp(bl,0,255);
         }
 
@@ -267,11 +291,11 @@ public final class LampEffects {
 
         private long runMusicBeat(){
             long elapsed=Math.max(0,SystemClock.uptimeMillis()-startedAt);
-            int bpm=kind==Kind.BEAT_120?120:kind==Kind.BEAT_130?130:125;
-            double beatMs=60000d/bpm;
+            // All club presets follow the same user-entered tempo.
+            double beatMs=60000d/Math.max(40,Math.min(200,bpm));
             long beat=(long)(elapsed/beatMs);
             double within=elapsed-beat*beatMs;
-            // Short beat accent with visible dark interval. Designed for ~120-130 BPM.
+            // Short beat accent with visible dark interval. Works from 40 to 200 BPM.
             int state=within<115d?1:0;
             if(kind==Kind.EDM_DROP && beat%4==3 && within>.71d*beatMs
                && within<.88d*beatMs)state=2; // short fill before the next bar
