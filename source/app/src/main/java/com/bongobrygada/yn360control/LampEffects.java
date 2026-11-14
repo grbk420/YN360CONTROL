@@ -15,7 +15,28 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, IDENTIFY
+    }
+
+    private static boolean isMusic(Kind kind){
+        switch(kind){
+            case BEAT_120:
+            case BEAT_125:
+            case BEAT_130:
+            case HOUSE_CHASE:
+            case TECHNO_KICK:
+            case DISCO_RAINBOW:
+            case EDM_DROP:
+            case BASS_BOUNCE:
+            case KICK_SNARE:
+            case DUO_PINGPONG:
+                return true;
+            default:return false;
+        }
+    }
+    private static boolean isFastScene(Kind kind){
+        return isMusic(kind)||kind==Kind.STROBE_TURBO||kind==Kind.STROBE_SNAP||
+            kind==Kind.STROBE_RAPID;
     }
 
     private final BleLightController[] lamps;
@@ -59,10 +80,24 @@ public final class LampEffects {
         Session s = new Session(kind,connectedMask,brightness,speed,colorR,colorG,colorB);
         for (int i=0;i<2;i++) if ((connectedMask & (1<<i)) != 0) {
             owner[i]=s;
-            lamps[i].setTurboStrobe(kind==Kind.STROBE_TURBO || kind==Kind.STROBE_SNAP);
+            lamps[i].setTurboStrobe(isFastScene(kind));
         }
         handler.post(s);
         return connectedMask;
+    }
+
+    /** Tap on a known kick/downbeat to align an existing manually paced music scene. */
+    public boolean syncMusic(int mask){
+        HashSet<Session> unique=new HashSet<>();
+        for(int i=0;i<2;i++)if((mask&(1<<i))!=0&&owner[i]!=null&&isMusic(owner[i].kind))
+            unique.add(owner[i]);
+        for(Session s:unique){
+            handler.removeCallbacks(s);
+            s.startedAt=SystemClock.uptimeMillis();
+            s.lastMusicFrame=Long.MIN_VALUE;
+            handler.post(s);
+        }
+        return !unique.isEmpty();
     }
 
     public void changeSpeed(int value) {
@@ -143,7 +178,9 @@ public final class LampEffects {
         int step=0;
         int burst=0;
         float hue=0f;
-        final long startedAt=SystemClock.uptimeMillis();
+        volatile long startedAt=SystemClock.uptimeMillis();
+        private long lastStrobeFrame=Long.MIN_VALUE;
+        private long lastMusicFrame=Long.MIN_VALUE;
 
         Session(Kind k,int m,int b,int s,int r,int g,int bl) {
             kind=k; mask=m; brightness=clamp(b,0,255);
@@ -213,6 +250,84 @@ public final class LampEffects {
             }
         }
 
+        private long runClockStrobe(long litMs,long darkMs){
+            long elapsed=Math.max(0,SystemClock.uptimeMillis()-startedAt);
+            long period=litMs+darkMs;
+            long cycle=elapsed/period;
+            long within=elapsed%period;
+            boolean lit=within<litMs;
+            long frame=cycle*2+(lit?0:1);
+            if(frame!=lastStrobeFrame){
+                lastStrobeFrame=frame;
+                rgb(mask,lit?255:0,lit?255:0,lit?255:0);
+            }
+            // Avoid drift: reschedule against monotonic uptime, not time after BLE writes.
+            return Math.max(15,(lit?litMs:period)-within);
+        }
+
+        private long runMusicBeat(){
+            long elapsed=Math.max(0,SystemClock.uptimeMillis()-startedAt);
+            int bpm=kind==Kind.BEAT_120?120:kind==Kind.BEAT_130?130:125;
+            double beatMs=60000d/bpm;
+            long beat=(long)(elapsed/beatMs);
+            double within=elapsed-beat*beatMs;
+            // Short beat accent with visible dark interval. Designed for ~120-130 BPM.
+            int state=within<115d?1:0;
+            if(kind==Kind.EDM_DROP && beat%4==3 && within>.71d*beatMs
+               && within<.88d*beatMs)state=2; // short fill before the next bar
+            long frame=beat*4+state;
+            if(frame==lastMusicFrame)return 27;
+            lastMusicFrame=frame;
+            int index=(int)(beat%8);
+            for(int i=0;i<2;i++){
+                int bit=1<<i;
+                if((mask&bit)==0||!lamps[i].isReady())continue;
+                int color;
+                switch(kind){
+                    case BEAT_120:
+                        color=(beat%4==0)?0x00F5FF:0x1260FF;
+                        break;
+                    case BEAT_125:
+                        color=(beat%2==0)?0xFF00C8:0x00EEFF;
+                        break;
+                    case BEAT_130:
+                        color=(beat%4==0)?0xFF3C00:0x7000FF;
+                        break;
+                    case HOUSE_CHASE:
+                        color=(i==0)?0x00D8FF:0xFF00AA;
+                        break;
+                    case TECHNO_KICK:
+                        color=(beat%4==0)?0xFF3200:0xC90013;
+                        break;
+                    case DISCO_RAINBOW: {
+                        int[] colors={0xFF002F,0xFFAF00,0x23FF00,0x00E6FF,
+                            0x5B00FF,0xFF00B6,0xFF6B00,0x00F4A6};
+                        color=colors[index];
+                        break;
+                    }
+                    case EDM_DROP:
+                        color=(beat%4==0)?0xFFCA00:(beat%2==0?0x00CFFF:0xB800FF);
+                        break;
+                    case BASS_BOUNCE:
+                        color=(beat%2==0)?0x00F5D5:0x3C00EF;
+                        break;
+                    case KICK_SNARE:
+                        color=(beat%2==0)?0xFF5200:0x00B9FF;
+                        break;
+                    case DUO_PINGPONG:
+                        color=(i==0)?0xFF00A5:0x00EBFF;
+                        break;
+                    default:color=0x00F0FF;
+                }
+                int level=state>0?255:(kind==Kind.BASS_BOUNCE||kind==Kind.DISCO_RAINBOW?35:0);
+                if((kind==Kind.HOUSE_CHASE||kind==Kind.DUO_PINGPONG)
+                   && (mask&3)==3 && (beat%2!=i))level=0;
+                rgb(bit,Color.red(color)*level/255,
+                    Color.green(color)*level/255,Color.blue(color)*level/255);
+            }
+            return 27; // frames are sent only on transitions; timing uses uptime
+        }
+
         @Override public void run() {
             if(mask == 0) return;
             long delay;
@@ -229,18 +344,16 @@ public final class LampEffects {
                     break;
                 }
                 case STROBE_TURBO: {
-                    // Target: ~6 Hz at max with short illuminated phase.
-                    // Values are scheduling requests; real BLE/firmware timing may be slower.
-                    boolean lit=(step++ & 1)==0;
-                    rgb(mask,lit?255:0,lit?255:0,lit?255:0);
-                    delay=lit?60:pace(speed,400,105);
+                    delay=runClockStrobe(60,pace(speed,400,105));
                     break;
                 }
                 case STROBE_SNAP: {
-                    // Lower frequency, longer dark interval; clearer frame separation.
-                    boolean lit=(step++ & 1)==0;
-                    rgb(mask,lit?255:0,lit?255:0,lit?255:0);
-                    delay=lit?60:pace(speed,510,175);
+                    delay=runClockStrobe(60,pace(speed,510,175));
+                    break;
+                }
+                case STROBE_RAPID: {
+                    // Experimental rapid rhythm. Hardware must still honour BLE writes.
+                    delay=runClockStrobe(60,pace(speed,340,82));
                     break;
                 }
                 case STROBE: {
@@ -445,10 +558,23 @@ public final class LampEffects {
                     delay=pace(speed,310,165);
                     break;
                 }
+                case BEAT_120:
+                case BEAT_125:
+                case BEAT_130:
+                case HOUSE_CHASE:
+                case TECHNO_KICK:
+                case DISCO_RAINBOW:
+                case EDM_DROP:
+                case BASS_BOUNCE:
+                case KICK_SNARE:
+                case DUO_PINGPONG: {
+                    delay=runMusicBeat();
+                    break;
+                }
                 default: return;
             }
-            if(mask!=0) handler.postDelayed(this,Math.max(
-                    (kind==Kind.STROBE_TURBO || kind==Kind.STROBE_SNAP)?60:150,delay));
+            if(mask!=0) handler.postDelayed(this,
+                    Math.max(isFastScene(kind)?15:150,delay));
         }
     }
 }
