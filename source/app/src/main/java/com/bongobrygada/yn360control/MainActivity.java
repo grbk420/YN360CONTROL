@@ -27,7 +27,15 @@ public class MainActivity extends Activity {
     private SeekBar micSensitivity;
     private SeekBar bpmSlider;
     private EditText bpmInput;
-    private TextView bpmValue,tapBpmResult;
+    private TextView bpmValue,tapBpmResult,djStatus;
+    private final Handler djUi=new Handler(Looper.getMainLooper());
+    private final Runnable djTick=new Runnable(){
+        @Override public void run(){
+            if(djStatus!=null && lampEffects!=null)
+                djStatus.setText(lampEffects.getDjStatus(selectedMask()));
+            djUi.postDelayed(this,350);
+        }
+    };
     private final ArrayDeque<Long> recentTaps=new ArrayDeque<>();
     private int selectedBpm=125;
     private TextView musicStatus;
@@ -168,6 +176,15 @@ public class MainActivity extends Activity {
         findViewById(R.id.electricStormBtn).setOnClickListener(v->startScene(LampEffects.Kind.ELECTRIC_STORM,"ELECTRIC STORM"));
         findViewById(R.id.beatCustomBtn).setOnClickListener(v->
             startScene(LampEffects.Kind.BEAT_125,"BEAT "+selectedBpm+" BPM"));
+        findViewById(R.id.djIntroBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_INTRO,"DJ • INTRO"));
+        findViewById(R.id.djGrooveBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_GROOVE,"DJ • GROOVE"));
+        findViewById(R.id.djTransitionBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_TRANSITION,"DJ • TRANSITION"));
+        findViewById(R.id.djBuild8Btn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_BUILD_8,"DJ • BUILD 8 TAKTÓW"));
+        findViewById(R.id.djBuild16Btn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_BUILD_16,"DJ • BUILD 16 TAKTÓW"));
+        findViewById(R.id.djPreDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_PRE_DROP,"DJ • PRE-DROP"));
+        findViewById(R.id.djDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_DROP,"DJ • DROP NOW"));
+        findViewById(R.id.djBreakdownBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_BREAKDOWN,"DJ • BREAKDOWN"));
+        findViewById(R.id.djOutroBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_OUTRO,"DJ • OUTRO"));
         findViewById(R.id.houseChaseBtn).setOnClickListener(v->startScene(LampEffects.Kind.HOUSE_CHASE,"HOUSE CHASE "+selectedBpm+" BPM"));
         findViewById(R.id.technoKickBtn).setOnClickListener(v->startScene(LampEffects.Kind.TECHNO_KICK,"TECHNO KICK "+selectedBpm+" BPM"));
         findViewById(R.id.discoRainbowBtn).setOnClickListener(v->startScene(LampEffects.Kind.DISCO_RAINBOW,"DISCO RAINBOW "+selectedBpm+" BPM"));
@@ -376,9 +393,11 @@ public class MainActivity extends Activity {
         else registerReceiver(timerReceiver,filter);
         timerReceiverRegistered=true;
         timerUi.post(timerTick);
+        djUi.post(djTick);
     }
     @Override protected void onStop(){
         timerUi.removeCallbacks(timerTick);
+        djUi.removeCallbacks(djTick);
         if(timerReceiverRegistered){unregisterReceiver(timerReceiver);timerReceiverRegistered=false;}
         super.onStop();
     }
@@ -919,6 +938,8 @@ public class MainActivity extends Activity {
         if(actual==0){status.setText("Połącz wybraną lampę przez Bluetooth");Toast.makeText(this,"Brak połączenia",Toast.LENGTH_SHORT).show();}
         else if(ensureEffectsForeground()){
             status.setText(name+" • "+targetLabel(actual)+" • działa w tle");
+            if(djStatus!=null)
+                djStatus.setText(lampEffects.getDjStatus(selectedMask()));
         }
     }
     /** Tempo works even when both lamps are off; no Bluetooth write until an effect is started. */
@@ -927,6 +948,7 @@ public class MainActivity extends Activity {
         bpmInput=findViewById(R.id.bpmInput);
         bpmValue=findViewById(R.id.bpmValue);
         tapBpmResult=findViewById(R.id.tapBpmResult);
+        djStatus=findViewById(R.id.djStatus);
         selectedBpm=Math.max(40,Math.min(200,prefs.getInt("custom_bpm",125)));
         lampEffects.setMusicBpm(selectedBpm);
         bpmSlider.setProgress(selectedBpm-40);
