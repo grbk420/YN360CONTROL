@@ -153,6 +153,24 @@ public class MainActivity extends Activity {
         findViewById(R.id.fireIceBtn).setOnClickListener(v->startScene(LampEffects.Kind.FIRE_ICE,"FIRE & ICE"));
         findViewById(R.id.pixelPartyBtn).setOnClickListener(v->startScene(LampEffects.Kind.PIXEL_PARTY,"PIXEL PARTY"));
         findViewById(R.id.electricStormBtn).setOnClickListener(v->startScene(LampEffects.Kind.ELECTRIC_STORM,"ELECTRIC STORM"));
+        findViewById(R.id.beat120Btn).setOnClickListener(v->startScene(LampEffects.Kind.BEAT_120,"BEAT 120 BPM"));
+        findViewById(R.id.beat125Btn).setOnClickListener(v->startScene(LampEffects.Kind.BEAT_125,"BEAT 125 BPM"));
+        findViewById(R.id.beat130Btn).setOnClickListener(v->startScene(LampEffects.Kind.BEAT_130,"BEAT 130 BPM"));
+        findViewById(R.id.houseChaseBtn).setOnClickListener(v->startScene(LampEffects.Kind.HOUSE_CHASE,"HOUSE CHASE 125 BPM"));
+        findViewById(R.id.technoKickBtn).setOnClickListener(v->startScene(LampEffects.Kind.TECHNO_KICK,"TECHNO KICK 125 BPM"));
+        findViewById(R.id.discoRainbowBtn).setOnClickListener(v->startScene(LampEffects.Kind.DISCO_RAINBOW,"DISCO RAINBOW 125 BPM"));
+        findViewById(R.id.edmDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.EDM_DROP,"EDM DROP 125 BPM"));
+        findViewById(R.id.bassBounceBtn).setOnClickListener(v->startScene(LampEffects.Kind.BASS_BOUNCE,"BASS BOUNCE 125 BPM"));
+        findViewById(R.id.kickSnareBtn).setOnClickListener(v->startScene(LampEffects.Kind.KICK_SNARE,"KICK & SNARE 125 BPM"));
+        findViewById(R.id.duoPingpongBtn).setOnClickListener(v->startScene(LampEffects.Kind.DUO_PINGPONG,"DUO PING PONG 125 BPM"));
+        findViewById(R.id.strobeRapidBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE_RAPID,"STROBE RAPID"));
+        findViewById(R.id.syncBeatBtn).setOnClickListener(v->{
+            int selected=selectedMask();
+            if(lampEffects.syncMusic(selected))
+                status.setText("SYNC • pierwsze uderzenie teraz • "+targetLabel(selected));
+            else
+                status.setText("Najpierw włącz efekt muzyczny dla wybranej lampy");
+        });
         findViewById(R.id.flashBtn).setOnClickListener(v->startFlash());
         findViewById(R.id.fadeBtn).setOnClickListener(v->startFade());
         findViewById(R.id.lightningBtn).setOnClickListener(v->startLightning());
