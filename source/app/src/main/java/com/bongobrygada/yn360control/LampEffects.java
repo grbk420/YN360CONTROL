@@ -15,7 +15,7 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, IDENTIFY
     }
 
     private final BleLightController[] lamps;
@@ -59,7 +59,7 @@ public final class LampEffects {
         Session s = new Session(kind,connectedMask,brightness,speed,colorR,colorG,colorB);
         for (int i=0;i<2;i++) if ((connectedMask & (1<<i)) != 0) {
             owner[i]=s;
-            lamps[i].setTurboStrobe(kind==Kind.STROBE_TURBO);
+            lamps[i].setTurboStrobe(kind==Kind.STROBE_TURBO || kind==Kind.STROBE_SNAP);
         }
         handler.post(s);
         return connectedMask;
@@ -76,6 +76,13 @@ public final class LampEffects {
     private static int clamp(int v,int min,int max) { return Math.max(min, Math.min(max,v)); }
     private static long pace(int setting,int slow,int fast) {
         return slow - ((long)(slow-fast)*setting)/100L;
+    }
+
+    private static double wave(double x){return .5d+.5d*Math.sin(x);}
+    private static int byteValue(double x){return clamp((int)Math.round(x),0,255);}
+    private void emitHue(int mask,float hue,float sat,float value){
+        int col=Color.HSVToColor(new float[]{(hue+360)%360,sat,value});
+        rgb(mask,Color.red(col),Color.green(col),Color.blue(col));
     }
 
     private final class Session implements Runnable {
@@ -102,6 +109,94 @@ public final class LampEffects {
                 lamps[i].rgb(dim(r),dim(g),dim(b));
         }
 
+        /** All new scenes use monotonic uptime: smooth time-based colour changes even if BLE jitters. */
+        private void renderSmoothScene(){
+            double seconds=(SystemClock.uptimeMillis()-startedAt)/1000d;
+            double t=seconds*(.52d+.0125d*speed);
+            for(int i=0;i<2;i++){
+                int bit=1<<i;
+                if((mask&bit)==0 || !lamps[i].isReady())continue;
+                double p=t+i*1.35d;
+                double a=wave(p), b=wave(p*.69d+2.1d), c=wave(p*.41d+4.1d);
+                int rr=0,gg=0,bb=0;
+                switch(kind){
+                    case CYBERPUNK:
+                        rr=byteValue(67+166*a);gg=byteValue(27+119*(1-a));bb=byteValue(170+68*c);
+                        break;
+                    case SYNTHWAVE:
+                        rr=byteValue(151+100*b);gg=byteValue(21+96*a);bb=byteValue(91+133*(1-a));
+                        break;
+                    case RAINBOW_FLOW:
+                        emitHue(bit,(float)((t*27d+i*64d)%360d),.92f,.95f);
+                        continue;
+                    case PLASMA:
+                        rr=byteValue(39+203*wave(p*1.11));
+                        gg=byteValue(26+178*wave(p*.83+1.8));
+                        bb=byteValue(59+194*wave(p*.65+3.2));
+                        break;
+                    case MATRIX_CODE:
+                        rr=byteValue(3+13*b);gg=byteValue(47+157*wave(p*.97+i*1.1));
+                        bb=byteValue(6+24*c);
+                        break;
+                    case NEON_TUNNEL:
+                        rr=byteValue(28+197*a);gg=byteValue(28+174*(1-a));
+                        bb=byteValue(186+69*b);
+                        break;
+                    case ARCADE:
+                        rr=byteValue(60+172*wave(p+.5));
+                        gg=byteValue(40+182*wave(p+2.6));
+                        bb=byteValue(78+171*wave(p+4.5));
+                        break;
+                    case BOSS_AURA:
+                        rr=byteValue(128+114*wave(p*.9));gg=byteValue(13+79*b);
+                        bb=byteValue(6+29*c);
+                        break;
+                    case GALAXY:
+                        rr=byteValue(27+92*b);gg=byteValue(20+64*c);
+                        bb=byteValue(97+137*a);
+                        break;
+                    case AQUA_RIPPLE:
+                        rr=byteValue(5+17*b);gg=byteValue(81+139*a);
+                        bb=byteValue(134+118*wave(p*.86+2.2));
+                        break;
+                    case ICE_CAVE:
+                        rr=byteValue(24+114*c);gg=byteValue(103+133*a);
+                        bb=byteValue(153+102*b);
+                        break;
+                    case SPACE_DRIFT:
+                        rr=byteValue(24+106*a);gg=byteValue(20+97*b);
+                        bb=byteValue(69+160*c);
+                        break;
+                    case LOFI_NIGHT:
+                        rr=byteValue(83+89*wave(p*.49));gg=byteValue(34+65*wave(p*.5+1.1));
+                        bb=byteValue(28+62*wave(p*.47+2.8));
+                        break;
+                    case COZY_GLOW:
+                        rr=byteValue(83+52*b);gg=byteValue(25+36*a);
+                        bb=byteValue(3+13*c);
+                        break;
+                    case DEEP_FOCUS:
+                        rr=byteValue(5+17*c);gg=byteValue(35+38*a);
+                        bb=byteValue(54+46*b);
+                        break;
+                    case STARFIELD:
+                        rr=byteValue(12+22*wave(p*.45));gg=byteValue(12+34*wave(p*.38+1.7));
+                        bb=byteValue(39+77*wave(p*.33+2.3));
+                        break;
+                    case DUO_CHASE:
+                        emitHue(bit,(float)((t*25d+i*180d)%360d),.82f,.84f);
+                        continue;
+                    case CHROMA_SPLIT:
+                        rr=byteValue(i==0?44+168*a:36+114*c);
+                        gg=byteValue(i==0?24+123*b:87+137*a);
+                        bb=byteValue(i==0?133+120*c:68+140*b);
+                        break;
+                    default:break;
+                }
+                rgb(bit,rr,gg,bb);
+            }
+        }
+
         @Override public void run() {
             if(mask == 0) return;
             long delay;
@@ -118,12 +213,18 @@ public final class LampEffects {
                     break;
                 }
                 case STROBE_TURBO: {
-                    // Snap-pulse pattern: shorter ON window followed by longer darkness.
-                    // Goal at max: ~65 ms on / 115 ms off (~5.6 Hz, 36% duty).
-                    // Bluetooth transport, Android scheduling, and LED drivers affect actual output.
+                    // Target: ~6 Hz at max with short illuminated phase.
+                    // Values are scheduling requests; real BLE/firmware timing may be slower.
                     boolean lit=(step++ & 1)==0;
                     rgb(mask,lit?255:0,lit?255:0,lit?255:0);
-                    delay=lit?65:pace(speed,380,115);
+                    delay=lit?60:pace(speed,400,105);
+                    break;
+                }
+                case STROBE_SNAP: {
+                    // Lower frequency, longer dark interval; clearer frame separation.
+                    boolean lit=(step++ & 1)==0;
+                    rgb(mask,lit?255:0,lit?255:0,lit?255:0);
+                    delay=lit?60:pace(speed,510,175);
                     break;
                 }
                 case STROBE: {
@@ -300,9 +401,32 @@ public final class LampEffects {
                     delay=pace(speed,390,220);
                     break;
                 }
+                case CYBERPUNK:
+                case SYNTHWAVE:
+                case RAINBOW_FLOW:
+                case PLASMA:
+                case MATRIX_CODE:
+                case NEON_TUNNEL:
+                case ARCADE:
+                case BOSS_AURA:
+                case GALAXY:
+                case AQUA_RIPPLE:
+                case ICE_CAVE:
+                case SPACE_DRIFT:
+                case LOFI_NIGHT:
+                case COZY_GLOW:
+                case DEEP_FOCUS:
+                case STARFIELD:
+                case DUO_CHASE:
+                case CHROMA_SPLIT: {
+                    renderSmoothScene();
+                    delay=pace(speed,310,165);
+                    break;
+                }
                 default: return;
             }
-            if(mask!=0) handler.postDelayed(this,Math.max(kind==Kind.STROBE_TURBO?65:150,delay));
+            if(mask!=0) handler.postDelayed(this,Math.max(
+                    (kind==Kind.STROBE_TURBO || kind==Kind.STROBE_SNAP)?60:150,delay));
         }
     }
 }

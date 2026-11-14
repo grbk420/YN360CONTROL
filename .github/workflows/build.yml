@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v1.5-final
+          name: YN360-Control-v1.6-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish FINAL v1.5 APK
+      - name: Publish FINAL v1.6 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.5.apk
-          if gh release view v1.5.0 >/dev/null 2>&1; then
-            gh release upload v1.5.0 YN360-Control-v1.5.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.6.apk
+          if gh release view v1.6.0 >/dev/null 2>&1; then
+            gh release upload v1.6.0 YN360-Control-v1.6.apk --clobber
           else
-            gh release create v1.5.0 YN360-Control-v1.5.apk \
-              --title "YN360 Control FINAL v1.5" \
-              --notes "Strobe Turbo Snap: krotszy impuls i dluzszy czas ciemnosci dla wyrazniejszego efektu stop-klatki, przy zachowaniu ograniczen Bluetooth; cala kolekcja scen w jednej sekcji bez podzialu na nowe i starsze. Rzeczywista czestotliwosc wymaga testu na lampach. Ostrzezenie o fotosensytywnosci."
+            gh release create v1.6.0 YN360-Control-v1.6.apk \
+              --title "YN360 Control FINAL v1.6" \
+              --notes "18 autorskich, plynnych presetow gamingowych i ambientowych: Cyberpunk, Synthwave, RGB River, Plasma, Matrix Code, Neon Tunnel, Arcade Flow, Boss Aura, Galaxy, Aqua Ripple, Ice Cave, Space Drift, Lo-Fi Night, Cozy Glow, Deep Focus, Starfield, Duo Chase i Chroma Split. Strobe Turbo 60/105 ms oraz Snap 60/175 ms jako cele czasowe, zalezne od BLE. Wszystko w jednej sekcji. Uwazaj na intensywne blyski."
           fi
