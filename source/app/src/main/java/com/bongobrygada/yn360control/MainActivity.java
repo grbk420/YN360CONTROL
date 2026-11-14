@@ -147,6 +147,12 @@ public class MainActivity extends Activity {
         findViewById(R.id.starfieldBtn).setOnClickListener(v->startScene(LampEffects.Kind.STARFIELD,"STARFIELD"));
         findViewById(R.id.duoChaseBtn).setOnClickListener(v->startScene(LampEffects.Kind.DUO_CHASE,"DUO CHASE"));
         findViewById(R.id.chromaSplitBtn).setOnClickListener(v->startScene(LampEffects.Kind.CHROMA_SPLIT,"CHROMA SPLIT"));
+        findViewById(R.id.neonRaveBtn).setOnClickListener(v->startScene(LampEffects.Kind.NEON_RAVE,"NEON RAVE"));
+        findViewById(R.id.laserSwapBtn).setOnClickListener(v->startScene(LampEffects.Kind.LASER_SWAP,"LASER SWAP"));
+        findViewById(R.id.toxicGlowBtn).setOnClickListener(v->startScene(LampEffects.Kind.TOXIC_GLOW,"TOXIC GLOW"));
+        findViewById(R.id.fireIceBtn).setOnClickListener(v->startScene(LampEffects.Kind.FIRE_ICE,"FIRE & ICE"));
+        findViewById(R.id.pixelPartyBtn).setOnClickListener(v->startScene(LampEffects.Kind.PIXEL_PARTY,"PIXEL PARTY"));
+        findViewById(R.id.electricStormBtn).setOnClickListener(v->startScene(LampEffects.Kind.ELECTRIC_STORM,"ELECTRIC STORM"));
         findViewById(R.id.flashBtn).setOnClickListener(v->startFlash());
         findViewById(R.id.fadeBtn).setOnClickListener(v->startFade());
         findViewById(R.id.lightningBtn).setOnClickListener(v->startLightning());
