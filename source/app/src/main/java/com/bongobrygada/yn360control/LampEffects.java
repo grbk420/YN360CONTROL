@@ -15,7 +15,7 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, IDENTIFY
     }
 
     private static boolean isMusic(Kind kind){
@@ -569,6 +569,55 @@ public final class LampEffects {
                 case KICK_SNARE:
                 case DUO_PINGPONG: {
                     delay=runMusicBeat();
+                    break;
+                }
+                case TRAFFIC_NEON: {
+                    long ms=(SystemClock.uptimeMillis()-startedAt)%10800L;
+                    // Recognisable stoplight: a long saturated colour hold, not a crossfade.
+                    int col=ms<3600?0xFF0800:ms<5400?0xFFAA00:0x00F443;
+                    rgb(mask,Color.red(col),Color.green(col),Color.blue(col));
+                    delay=320;
+                    break;
+                }
+                case COMET_TRAIL: {
+                    long ms=SystemClock.uptimeMillis()-startedAt;
+                    for(int i=0;i<2;i++){
+                        int bit=1<<i;
+                        if((mask&bit)==0)continue;
+                        long phase=(ms+(i==0?0:1750))%3500;
+                        double strength=phase<190?1d:(phase<1400?
+                            .07d+.93d*Math.pow(1d-(phase-190d)/1210d,2d):.03d);
+                        int c=i==0?0x00E7FF:0xFF8A00;
+                        rgb(bit,(int)(Color.red(c)*strength),
+                            (int)(Color.green(c)*strength),(int)(Color.blue(c)*strength));
+                    }
+                    delay=150;
+                    break;
+                }
+                case HEARTBEAT_DUO: {
+                    long ms=SystemClock.uptimeMillis()-startedAt;
+                    for(int i=0;i<2;i++){
+                        int bit=1<<i;if((mask&bit)==0)continue;
+                        long phase=(ms+(i==0?0:700))%1400;
+                        double strength=(phase<105||phase>=225&&phase<320)?1d:.025d;
+                        rgb(bit,(int)(220*strength),(int)(13*strength),
+                            (int)(60*strength));
+                    }
+                    delay=80;
+                    break;
+                }
+                case SUNRISE_20: {
+                    double progress=Math.min(1d,
+                        (SystemClock.uptimeMillis()-startedAt)/(20d*60d*1000d));
+                    float hue=(float)(10d+35d*progress);
+                    float value=(float)(.035d+.83d*Math.pow(progress,1.7d));
+                    int c=Color.HSVToColor(new float[]{hue,.98f-(float)(.50d*progress),value});
+                    rgb(mask,Color.red(c),Color.green(c),Color.blue(c));
+                    if(progress>=1d){
+                        for(int i=0;i<2;i++)if(owner[i]==this)owner[i]=null;
+                        mask=0;return;
+                    }
+                    delay=2100;
                     break;
                 }
                 default: return;
