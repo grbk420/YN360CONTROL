@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v1.9-final
+          name: YN360-Control-v1.10-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish FINAL v1.9 APK
+      - name: Publish FINAL v1.10 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.9.apk
-          if gh release view v1.9.0 >/dev/null 2>&1; then
-            gh release upload v1.9.0 YN360-Control-v1.9.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.10.apk
+          if gh release view v1.10.0 >/dev/null 2>&1; then
+            gh release upload v1.10.0 YN360-Control-v1.10.apk --clobber
           else
-            gh release create v1.9.0 YN360-Control-v1.9.apk \
-              --title "YN360 Control FINAL v1.9" \
-              --notes "YN360 Studio v1.9: MUSIC LIVE microphone reactive Bluetooth scenes (Bass Reactor, Club Duo, Sound Spectrum, Ambient Audio, Drop Hunter), sensitivity, explicit microphone permission, foreground service for screen-off; no audio storage. Six collapsible categories retain original presets. Four distinct scenes: Traffic Neon, Comet Trail, Heartbeat Duo and 20-minute Sunrise. Existing app signature and manual ON retained. Live mic and physical lamps still require device testing."
+            gh release create v1.10.0 YN360-Control-v1.10.apk \
+              --title "YN360 Control FINAL v1.10" \
+              --notes "BPM Studio: 40-200 BPM per touch slider, direct number input with Apply and +/- steps, Tap Tempo beat detection using recent taps with outlier rejection, automatic adjustment of running club presets while preserving beat phase, live sync on taps. Removed fixed 120/125/130 buttons, all club effects use the selected tempo. Existing Bluetooth, Music Live microphone, categories and signing preserved. Confirm real lamp behaviour on device."
           fi
