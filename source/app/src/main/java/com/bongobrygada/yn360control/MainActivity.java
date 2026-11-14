@@ -24,6 +24,10 @@ public class MainActivity extends Activity {
     private boolean slidersFromPalette=false;
     private int paletteR=255, paletteG=0, paletteB=0;
     private LampEffects lampEffects;
+    private SeekBar micSensitivity;
+    private TextView musicStatus;
+    private static final int MIC_REQUEST=306;
+    private int pendingMicMode=-1,pendingMicMask=0;
     private LightingSession lightingSession;
     private TextView lamp1State,lamp2State,colorValue,timerStatus1,timerStatus2,selectedTarget;
     private View timerBody, diagnosticsBody;
@@ -35,7 +39,11 @@ public class MainActivity extends Activity {
     private final BroadcastReceiver timerReceiver=new BroadcastReceiver(){
         @Override public void onReceive(Context context,Intent intent){
             int expired=intent.getIntExtra("expired",0);
-            if(expired!=0){lampEffects.stop(expired); forMask(expired,BleLightController::off);}
+            if(expired!=0){
+                lampEffects.stop(expired);
+                if(lightingSession!=null)lightingSession.music.stop(expired);
+                forMask(expired,BleLightController::off);
+            }
             refreshTimers();
         }
     };
@@ -188,12 +196,39 @@ public class MainActivity extends Activity {
         findViewById(R.id.auroraBtn).setOnClickListener(v->startScene(LampEffects.Kind.AURORA,"AURORA FLOW"));
         findViewById(R.id.breatheBtn).setOnClickListener(v->startScene(LampEffects.Kind.BREATHING,"SOFT BREATH"));
         findViewById(R.id.sleepBtn).setOnClickListener(v->startScene(LampEffects.Kind.SLEEP,"SLEEP • 15 MIN"));
+        findViewById(R.id.trafficNeonBtn).setOnClickListener(v->startScene(LampEffects.Kind.TRAFFIC_NEON,"TRAFFIC NEON"));
+        findViewById(R.id.cometTrailBtn).setOnClickListener(v->startScene(LampEffects.Kind.COMET_TRAIL,"COMET TRAIL"));
+        findViewById(R.id.heartbeatDuoBtn).setOnClickListener(v->startScene(LampEffects.Kind.HEARTBEAT_DUO,"HEARTBEAT DUO"));
+        findViewById(R.id.sunrise20Btn).setOnClickListener(v->startScene(LampEffects.Kind.SUNRISE_20,"SUNRISE 20 MIN"));
         fxSpeed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
           public void onProgressChanged(SeekBar s,int p,boolean fromUser){if(fromUser) lampEffects.changeSpeed(p);}
           public void onStartTrackingTouch(SeekBar s){}
           public void onStopTrackingTouch(SeekBar s){}
         });
         findViewById(R.id.stopFxBtn).setOnClickListener(v->stopFx(true));
+        micSensitivity=findViewById(R.id.micSensitivity);
+        musicStatus=findViewById(R.id.musicStatus);
+        micSensitivity.setProgress(prefs.getInt("mic_sensitivity",65));
+        lightingSession.music.setSensitivity(micSensitivity.getProgress());
+        micSensitivity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar bar,int value,boolean user){
+                if(user){
+                    lightingSession.music.setSensitivity(value);
+                    prefs.edit().putInt("mic_sensitivity",value).apply();
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar){}
+            @Override public void onStopTrackingTouch(SeekBar bar){}
+        });
+        findViewById(R.id.liveBassBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.BASS_REACTOR));
+        findViewById(R.id.liveClubBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.CLUB_DUO));
+        findViewById(R.id.liveSpectrumBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.SPECTRUM));
+        findViewById(R.id.liveAmbientBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.AMBIENT_AUDIO));
+        findViewById(R.id.liveDropBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.DROP_HUNTER));
+        findViewById(R.id.liveStopBtn).setOnClickListener(v->{
+            stopMusicForMask(selectedMask());
+            musicStatus.setText("MUSIC LIVE zatrzymany dla "+targetLabel(selectedMask()));
+        });
         requestBtPermissions();
         updateButtons();
         setupManualSliders();
@@ -208,6 +243,7 @@ public class MainActivity extends Activity {
         targetBoth.setOnClickListener(v->selectTarget(3));
         selectTarget(prefs.getInt("target_mask",1));
         setupCollapsibleSections();
+        setupFxCategories();
         new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 900);
     }
 
@@ -374,7 +410,15 @@ public class MainActivity extends Activity {
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults){
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if(hasBtPermissions()) new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 300);
+        if(requestCode==MIC_REQUEST){
+            boolean granted=grantResults.length>0&&
+                grantResults[0]==PackageManager.PERMISSION_GRANTED;
+            if(granted && pendingMicMode>=0)startMusicLive(pendingMicMask,pendingMicMode);
+            else if(musicStatus!=null)musicStatus.setText("Brak zgody na mikrofon • MUSIC LIVE wyłączony");
+            pendingMicMode=-1;pendingMicMask=0;
+            return;
+        }
+        if(hasBtPermissions()) new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved,300);
     }
 
     @SuppressWarnings("MissingPermission")
@@ -843,6 +887,7 @@ public class MainActivity extends Activity {
         if(!lightingSession.hasRunningScenes()){
             try{stopService(new Intent(this,EffectsForegroundService.class));}catch(Exception ignored){}
         }
+        stopMusicForMask(selectedMask());
         if(announce) status.setText("Zatrzymano • "+targetLabel(selectedMask()));
     }
     private boolean ensureEffectsForeground(){
@@ -864,12 +909,86 @@ public class MainActivity extends Activity {
         int mask=selectedMask();
         int allowed=enabledMask(mask);
         if(allowed==0){status.setText("Najpierw naciśnij Włącz • scena nie uruchomiona");return;}
+        stopMusicForMask(allowed);
         int actual=lampEffects.start(kind,allowed,brightness.getProgress(),fxSpeed.getProgress(),red.getProgress(),green.getProgress(),blue.getProgress());
         if(actual==0){status.setText("Połącz wybraną lampę przez Bluetooth");Toast.makeText(this,"Brak połączenia",Toast.LENGTH_SHORT).show();}
         else if(ensureEffectsForeground()){
             status.setText(name+" • "+targetLabel(actual)+" • działa w tle");
         }
     }
+    /** Only one preset category is visible at once. This keeps a large library manageable. */
+    private void setupFxCategories(){
+        final int[] headers={
+            R.id.catLiveHeader,R.id.catBpmHeader,R.id.catGamingHeader,
+            R.id.catAmbientHeader,R.id.catDualHeader,R.id.catFlashHeader
+        };
+        int selected=prefs.getInt("fx_category",0);
+        if(selected<0||selected>=headers.length)selected=0;
+        showFxCategory(selected);
+        for(int i=0;i<headers.length;i++){
+            final int index=i;
+            findViewById(headers[i]).setOnClickListener(v->showFxCategory(index));
+        }
+    }
+    private void showFxCategory(int selected){
+        int[] panels={R.id.catLiveBody,R.id.catBpmBody,R.id.catGamingBody,
+            R.id.catAmbientBody,R.id.catDualBody,R.id.catFlashBody};
+        int[] headers={R.id.catLiveHeader,R.id.catBpmHeader,R.id.catGamingHeader,
+            R.id.catAmbientHeader,R.id.catDualHeader,R.id.catFlashHeader};
+        for(int i=0;i<panels.length;i++){
+            boolean active=i==selected;
+            findViewById(panels[i]).setVisibility(active?View.VISIBLE:View.GONE);
+            ((Button)findViewById(headers[i])).setBackgroundTintList(
+                android.content.res.ColorStateList.valueOf(
+                    android.graphics.Color.parseColor(active?"#5942A0":"#202B44")));
+        }
+        prefs.edit().putInt("fx_category",selected).apply();
+    }
+    private void stopMusicForMask(int mask){
+        lightingSession.music.stop(mask);
+        if(!lightingSession.music.isActive()){
+            try{stopService(new Intent(this,MusicSyncService.class));}catch(Exception ignored){}
+        }
+    }
+    private void requestMusicLive(int mode){
+        int mask=enabledMask(selectedMask());
+        if(mask==0){
+            musicStatus.setText("Najpierw połącz i ręcznie WŁĄCZ wybraną lampę");
+            return;
+        }
+        // Microphone service must be launched while Activity is visible.
+        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+            pendingMicMode=mode;pendingMicMask=mask;
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);
+            musicStatus.setText("Potrzebna zgoda na mikrofon");
+            return;
+        }
+        startMusicLive(mask,mode);
+    }
+    private void startMusicLive(int mask,int mode){
+        if(mask==0)return;
+        lampEffects.stop(mask);
+        if(!lightingSession.hasRunningScenes()){
+            try{stopService(new Intent(this,EffectsForegroundService.class));}
+            catch(Exception ignored){}
+        }
+        lightingSession.music.start(mask,mode,micSensitivity.getProgress(),
+            brightness.getProgress());
+        Intent intent=new Intent(this,MusicSyncService.class);
+        intent.setAction(MusicSyncService.START);
+        try{
+            if(Build.VERSION.SDK_INT>=26)startForegroundService(intent);
+            else startService(intent);
+            musicStatus.setText("MUSIC LIVE • "+targetLabel(mask)+
+                " • mikrofon aktywny po uruchomieniu usługi");
+            status.setText("MUSIC SYNC • reaguje na muzykę z głośników");
+        }catch(RuntimeException e){
+            lightingSession.music.stop(mask);
+            musicStatus.setText("Nie można uruchomić mikrofonu: "+
+                e.getClass().getSimpleName());
+        }
+    }
+
     private void startPolice(){startScene(LampEffects.Kind.POLICE,"POLICE");}
     private void startDisco(){startScene(LampEffects.Kind.DISCO,"DISCO");}
     private void startStrobe(){startScene(LampEffects.Kind.STROBE,"STROBE ⚠");}
@@ -892,7 +1011,7 @@ public class MainActivity extends Activity {
     @Override protected void onDestroy(){
         if(palettePending!=null)ui.removeCallbacks(palettePending);
         lightingSession.detach(lightingObserver);
-        if(!lightingSession.hasRunningScenes()){
+        if(!lightingSession.hasBackgroundWork()){
             light1.disconnect();
             light2.disconnect();
         }
