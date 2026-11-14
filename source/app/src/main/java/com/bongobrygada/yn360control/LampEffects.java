@@ -80,11 +80,6 @@ public final class LampEffects {
 
     private static double wave(double x){return .5d+.5d*Math.sin(x);}
     private static int byteValue(double x){return clamp((int)Math.round(x),0,255);}
-    private void emitHue(int mask,float hue,float sat,float value){
-        int col=Color.HSVToColor(new float[]{(hue+360)%360,sat,value});
-        rgb(mask,Color.red(col),Color.green(col),Color.blue(col));
-    }
-
     private final class Session implements Runnable {
         final Kind kind;
         volatile int mask;
@@ -107,6 +102,11 @@ public final class LampEffects {
         private void rgb(int m,int r,int g,int b) {
             for(int i=0;i<2;i++) if ((m & (1<<i)) != 0 && lamps[i].isReady())
                 lamps[i].rgb(dim(r),dim(g),dim(b));
+        }
+
+        private void emitHue(int mask,float hue,float sat,float value){
+            int col=Color.HSVToColor(new float[]{(hue+360)%360,sat,value});
+            rgb(mask,Color.red(col),Color.green(col),Color.blue(col));
         }
 
         /** All new scenes use monotonic uptime: smooth time-based colour changes even if BLE jitters. */
