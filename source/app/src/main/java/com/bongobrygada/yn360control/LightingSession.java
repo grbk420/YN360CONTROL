@@ -11,6 +11,7 @@ public final class LightingSession {
     public final BleLightController first;
     public final BleLightController second;
     public final LampEffects effects;
+    public final MusicReactiveController music;
     private final Handler main=new Handler(Looper.getMainLooper());
     private volatile Observer observer;
 
@@ -19,6 +20,7 @@ public final class LightingSession {
         first=new BleLightController(app,state->notifyObserver(1,state));
         second=new BleLightController(app,state->notifyObserver(2,state));
         effects=new LampEffects(first,second);
+        music=new MusicReactiveController(first,second);
     }
     public static synchronized LightingSession get(Context context){
         if(instance==null)instance=new LightingSession(context);
@@ -33,4 +35,5 @@ public final class LightingSession {
         });
     }
     public boolean hasRunningScenes(){return effects.hasActive(3);}
+    public boolean hasBackgroundWork(){return effects.hasActive(3)||music.isActive();}
 }
