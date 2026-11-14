@@ -4,7 +4,7 @@
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
 <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✦ YN360" android:textSize="25sp" android:textColor="#F5F7FF" android:textStyle="bold" />
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STUDIO LIGHT  •  v1.10" android:textSize="11sp" android:textColor="#A778FF" android:textStyle="bold" android:letterSpacing="0.14"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="STUDIO LIGHT  •  v1.11" android:textSize="11sp" android:textColor="#A778FF" android:textStyle="bold" android:letterSpacing="0.14"/>
 </LinearLayout>
 <Button android:id="@+id/updatesBtn" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="↻ Wersje" android:textSize="12sp" android:textAllCaps="false" android:backgroundTint="#282043" android:textColor="#F5F7FF"/>
 </LinearLayout>
@@ -99,6 +99,33 @@
 <Button android:id="@+id/tapTempoBtn" android:layout_width="match_parent" android:layout_height="70dp" android:text="◉ TAP TEMPO • STUKAJ W RYTM" android:textStyle="bold" android:textAllCaps="false" android:textSize="15sp" android:textColor="#FFFFFF" android:backgroundTint="#186C77"/>
 <TextView android:id="@+id/tapBpmResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Wystukaj minimum 4 razy, aby obliczyć BPM" android:textSize="12sp" android:textColor="#BDE5E3" android:gravity="center" android:padding="8dp"/>
 <Button android:id="@+id/tapResetBtn" android:layout_width="match_parent" android:layout_height="43dp" android:text="↻ Wyczyść pomiar" android:textAllCaps="false" android:textSize="12sp" android:textColor="#D7DBEA" android:backgroundTint="#35465B"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="DJ PERFORMANCE • MIX NA ŻYWO" android:textSize="15sp" android:textStyle="bold" android:textColor="#BFA5FF" android:layout_marginTop="16dp" android:layout_marginBottom="5dp"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Zmieniaj scenę podczas grania • każda działa z wybranym BPM" android:textSize="11sp" android:textColor="#B7C4DF" android:layout_marginBottom="7dp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_highlight">
+<TextView android:id="@+id/djStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="DJ Performance: wybierz scenę • lampy włączysz ręcznie" android:textSize="13sp" android:textStyle="bold" android:textColor="#A1F2D8"/>
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<Button android:id="@+id/djIntroBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="49dp" android:minHeight="46dp" android:layout_margin="2dp" android:text="◌ Intro" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#303B61"/>
+<Button android:id="@+id/djGrooveBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="49dp" android:minHeight="46dp" android:layout_margin="2dp" android:text="♫ Groove" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#27566E"/>
+</LinearLayout>
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<Button android:id="@+id/djTransitionBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="49dp" android:minHeight="46dp" android:layout_margin="2dp" android:text="⇄ Transition" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#444174"/>
+<Button android:id="@+id/djBreakdownBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="49dp" android:minHeight="46dp" android:layout_margin="2dp" android:text="☾ Breakdown" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#29475D"/>
+</LinearLayout>
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<Button android:id="@+id/djBuild8Btn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="49dp" android:minHeight="46dp" android:layout_margin="2dp" android:text="↗ Build 8 taktów" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#714865"/>
+<Button android:id="@+id/djBuild16Btn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="49dp" android:minHeight="46dp" android:layout_margin="2dp" android:text="↗ Build 16 taktów" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#70405A"/>
+</LinearLayout>
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<Button android:id="@+id/djPreDropBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="49dp" android:minHeight="46dp" android:layout_margin="2dp" android:text="⚡ PRE-DROP" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#743D62"/>
+<Button android:id="@+id/djOutroBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="49dp" android:minHeight="46dp" android:layout_margin="2dp" android:text="☁ Outro" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#3D485B"/>
+</LinearLayout>
+
+<Button android:id="@+id/djDropBtn" android:layout_width="match_parent" android:layout_height="62dp" android:layout_marginTop="6dp" android:layout_marginBottom="5dp" android:text="⚡ DROP NOW • KOLOR + BŁYSKI" android:textStyle="bold" android:textAllCaps="false" android:textSize="16sp" android:textColor="#FFFFFF" android:backgroundTint="#AA3260"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="BUILD 8/16 automatycznie przechodzi w DROP po 8 lub 16 taktach. PRE-DROP trwa do ręcznego DROP NOW. Możesz zmieniać sceny w każdej chwili." android:textSize="11sp" android:textColor="#AAB6D2" android:layout_marginTop="5dp" android:layout_marginBottom="6dp"/>
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Presety klubowe • wszystkie używają BPM ustawionego powyżej" android:textStyle="bold" android:textSize="12sp" android:textColor="#C9BAFF" android:layout_marginTop="15dp" android:layout_marginBottom="6dp"/>
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
 <Button android:id="@+id/houseChaseBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:layout_margin="2dp" android:minHeight="44dp" android:text="♬ House Chase" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#292F51"/>
@@ -167,7 +194,7 @@
 </LinearLayout>
 </LinearLayout>
 <Space android:layout_width="1dp" android:layout_height="18dp"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="YN360 CONTROL • STUDIO v1.10 • BONGO BRYGADA" android:textSize="11sp" android:textColor="#65718D"  android:gravity="center"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="YN360 CONTROL • STUDIO v1.11 • BONGO BRYGADA" android:textSize="11sp" android:textColor="#65718D"  android:gravity="center"/>
 <Space android:layout_width="1dp" android:layout_height="12dp"/>
 </LinearLayout>
 </ScrollView>
