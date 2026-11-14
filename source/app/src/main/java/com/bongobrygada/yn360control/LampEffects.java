@@ -15,7 +15,7 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, IDENTIFY
     }
 
     private final BleLightController[] lamps;
@@ -80,6 +80,60 @@ public final class LampEffects {
 
     private static double wave(double x){return .5d+.5d*Math.sin(x);}
     private static int byteValue(double x){return clamp((int)Math.round(x),0,255);}
+    private static final int[] PALETTE_CYBERPUNK={0xFF00DC,0x00F0FF,0x5400FF,0xFF0059};
+    private static final int[] PALETTE_SYNTHWAVE={0xFF5B00,0xFF007F,0x5C00FF,0x00B5FF,0xFFB000};
+    private static final int[] PALETTE_RAINBOW_FLOW={0xFF1200,0xFF9800,0xF5F500,0x08FA50,0x00BCFF,0x3D00FF,0xFF00A8};
+    private static final int[] PALETTE_PLASMA={0x00FFB8,0x3D00FF,0xFF00BA,0x0A7BFF,0xF300FF};
+    private static final int[] PALETTE_MATRIX_CODE={0x05A800,0x02FF3B,0x01801A,0x4AFF00,0x04E543};
+    private static final int[] PALETTE_NEON_TUNNEL={0x00EEFF,0xFF00CC,0x3B00FF,0x00FFAA};
+    private static final int[] PALETTE_ARCADE={0xFF0027,0xFFD300,0x27FF00,0x00D7FF,0x7B00FF,0xFF0098};
+    private static final int[] PALETTE_BOSS_AURA={0xFF1A00,0xFF6000,0xFFBF00,0xC40006};
+    private static final int[] PALETTE_GALAXY={0x3200B7,0x6500FF,0x0068FF,0xA300FA,0x0024E7};
+    private static final int[] PALETTE_AQUA_RIPPLE={0x00FFD5,0x00A6FF,0x003CFF,0x00ED91};
+    private static final int[] PALETTE_ICE_CAVE={0x00BBFF,0x1661FF,0x00F3FF,0x3252D9};
+    private static final int[] PALETTE_SPACE_DRIFT={0x4900E4,0x006FFF,0x00CCB9,0x7800F5,0x001EA8};
+    private static final int[] PALETTE_LOFI_NIGHT={0xE75B00,0xDE2B79,0x7421CE,0xFF9500};
+    private static final int[] PALETTE_COZY_GLOW={0xFF7900,0xFFB300,0xFF3E00,0xE67C00};
+    private static final int[] PALETTE_DEEP_FOCUS={0x0040D9,0x008EBD,0x00A886,0x00389A};
+    private static final int[] PALETTE_STARFIELD={0x2500E5,0x6000AD,0x0052EE,0x8B00E0};
+    private static final int[] PALETTE_DUO_CHASE={0xFF00A8,0x00EFFF,0xFFD400,0x3300FF};
+    private static final int[] PALETTE_CHROMA_SPLIT={0xFF0054,0x00D9FF,0xFFAE00,0x15F500};
+    private static final int[] PALETTE_NEON_RAVE={0x00EAFF,0xFF00F6,0x0EFF00,0xFF9A00,0x5400FF};
+    private static final int[] PALETTE_LASER_SWAP={0xFF0047,0x00F4F8,0xFF5400,0x09FF31};
+    private static final int[] PALETTE_TOXIC_GLOW={0x65FF00,0x00B31D,0xF0E900,0x13FA32,0x4C00C8};
+    private static final int[] PALETTE_FIRE_ICE={0xFF3300,0xFF9B00,0x008BFF,0x00E9FA};
+    private static final int[] PALETTE_PIXEL_PARTY={0xFF005D,0x00ECFF,0xF3FF00,0x04F83E,0x8D00FF};
+    private static final int[] PALETTE_ELECTRIC_STORM={0x1000FF,0x0075FF,0x00B9FF,0x5F00F0,0x00D5D9};
+    private static int[] sceneColors(Kind kind){
+        switch(kind){
+            case CYBERPUNK:return PALETTE_CYBERPUNK;
+            case SYNTHWAVE:return PALETTE_SYNTHWAVE;
+            case RAINBOW_FLOW:return PALETTE_RAINBOW_FLOW;
+            case PLASMA:return PALETTE_PLASMA;
+            case MATRIX_CODE:return PALETTE_MATRIX_CODE;
+            case NEON_TUNNEL:return PALETTE_NEON_TUNNEL;
+            case ARCADE:return PALETTE_ARCADE;
+            case BOSS_AURA:return PALETTE_BOSS_AURA;
+            case GALAXY:return PALETTE_GALAXY;
+            case AQUA_RIPPLE:return PALETTE_AQUA_RIPPLE;
+            case ICE_CAVE:return PALETTE_ICE_CAVE;
+            case SPACE_DRIFT:return PALETTE_SPACE_DRIFT;
+            case LOFI_NIGHT:return PALETTE_LOFI_NIGHT;
+            case COZY_GLOW:return PALETTE_COZY_GLOW;
+            case DEEP_FOCUS:return PALETTE_DEEP_FOCUS;
+            case STARFIELD:return PALETTE_STARFIELD;
+            case DUO_CHASE:return PALETTE_DUO_CHASE;
+            case CHROMA_SPLIT:return PALETTE_CHROMA_SPLIT;
+            case NEON_RAVE:return PALETTE_NEON_RAVE;
+            case LASER_SWAP:return PALETTE_LASER_SWAP;
+            case TOXIC_GLOW:return PALETTE_TOXIC_GLOW;
+            case FIRE_ICE:return PALETTE_FIRE_ICE;
+            case PIXEL_PARTY:return PALETTE_PIXEL_PARTY;
+            case ELECTRIC_STORM:return PALETTE_ELECTRIC_STORM;
+            default:return PALETTE_CYBERPUNK;
+        }
+    }
+
     private final class Session implements Runnable {
         final Kind kind;
         volatile int mask;
@@ -101,7 +155,7 @@ public final class LampEffects {
 
         private void rgb(int m,int r,int g,int b) {
             for(int i=0;i<2;i++) if ((m & (1<<i)) != 0 && lamps[i].isReady())
-                lamps[i].rgb(dim(r),dim(g),dim(b));
+                lamps[i].sceneRgb(dim(r),dim(g),dim(b));
         }
 
         private void emitHue(int mask,float hue,float sat,float value){
@@ -109,91 +163,53 @@ public final class LampEffects {
             rgb(mask,Color.red(col),Color.green(col),Color.blue(col));
         }
 
-        /** All new scenes use monotonic uptime: smooth time-based colour changes even if BLE jitters. */
+        /** Saturated HSV keyframe interpolation avoids the washed-out white midpoint
+         * produced when additive RGB channels are interpolated independently. */
         private void renderSmoothScene(){
-            double seconds=(SystemClock.uptimeMillis()-startedAt)/1000d;
-            double t=seconds*(.52d+.0125d*speed);
+            final double elapsed=(SystemClock.uptimeMillis()-startedAt)/1000d;
+            final int[] colors=sceneColors(kind);
+            final boolean calm=kind==Kind.COZY_GLOW||kind==Kind.DEEP_FOCUS||
+                kind==Kind.LOFI_NIGHT||kind==Kind.STARFIELD||
+                kind==Kind.GALAXY||kind==Kind.SPACE_DRIFT;
+            final boolean gaming=kind==Kind.ARCADE||kind==Kind.PIXEL_PARTY||
+                kind==Kind.NEON_RAVE||kind==Kind.LASER_SWAP||kind==Kind.DUO_CHASE;
+            final double perSecond=(calm?.085d:gaming?.19d:.135d)+
+                speed*(calm?.0011d:.0021d);
             for(int i=0;i<2;i++){
                 int bit=1<<i;
                 if((mask&bit)==0 || !lamps[i].isReady())continue;
-                double p=t+i*1.35d;
-                double a=wave(p), b=wave(p*.69d+2.1d), c=wave(p*.41d+4.1d);
-                int rr=0,gg=0,bb=0;
-                switch(kind){
-                    case CYBERPUNK:
-                        rr=byteValue(67+166*a);gg=byteValue(27+119*(1-a));bb=byteValue(170+68*c);
-                        break;
-                    case SYNTHWAVE:
-                        rr=byteValue(151+100*b);gg=byteValue(21+96*a);bb=byteValue(91+133*(1-a));
-                        break;
-                    case RAINBOW_FLOW:
-                        emitHue(bit,(float)((t*27d+i*64d)%360d),.92f,.95f);
-                        continue;
-                    case PLASMA:
-                        rr=byteValue(39+203*wave(p*1.11));
-                        gg=byteValue(26+178*wave(p*.83+1.8));
-                        bb=byteValue(59+194*wave(p*.65+3.2));
-                        break;
-                    case MATRIX_CODE:
-                        rr=byteValue(3+13*b);gg=byteValue(47+157*wave(p*.97+i*1.1));
-                        bb=byteValue(6+24*c);
-                        break;
-                    case NEON_TUNNEL:
-                        rr=byteValue(28+197*a);gg=byteValue(28+174*(1-a));
-                        bb=byteValue(186+69*b);
-                        break;
-                    case ARCADE:
-                        rr=byteValue(60+172*wave(p+.5));
-                        gg=byteValue(40+182*wave(p+2.6));
-                        bb=byteValue(78+171*wave(p+4.5));
-                        break;
-                    case BOSS_AURA:
-                        rr=byteValue(128+114*wave(p*.9));gg=byteValue(13+79*b);
-                        bb=byteValue(6+29*c);
-                        break;
-                    case GALAXY:
-                        rr=byteValue(27+92*b);gg=byteValue(20+64*c);
-                        bb=byteValue(97+137*a);
-                        break;
-                    case AQUA_RIPPLE:
-                        rr=byteValue(5+17*b);gg=byteValue(81+139*a);
-                        bb=byteValue(134+118*wave(p*.86+2.2));
-                        break;
-                    case ICE_CAVE:
-                        rr=byteValue(24+114*c);gg=byteValue(103+133*a);
-                        bb=byteValue(153+102*b);
-                        break;
-                    case SPACE_DRIFT:
-                        rr=byteValue(24+106*a);gg=byteValue(20+97*b);
-                        bb=byteValue(69+160*c);
-                        break;
-                    case LOFI_NIGHT:
-                        rr=byteValue(83+89*wave(p*.49));gg=byteValue(34+65*wave(p*.5+1.1));
-                        bb=byteValue(28+62*wave(p*.47+2.8));
-                        break;
-                    case COZY_GLOW:
-                        rr=byteValue(83+52*b);gg=byteValue(25+36*a);
-                        bb=byteValue(3+13*c);
-                        break;
-                    case DEEP_FOCUS:
-                        rr=byteValue(5+17*c);gg=byteValue(35+38*a);
-                        bb=byteValue(54+46*b);
-                        break;
-                    case STARFIELD:
-                        rr=byteValue(12+22*wave(p*.45));gg=byteValue(12+34*wave(p*.38+1.7));
-                        bb=byteValue(39+77*wave(p*.33+2.3));
-                        break;
-                    case DUO_CHASE:
-                        emitHue(bit,(float)((t*25d+i*180d)%360d),.82f,.84f);
-                        continue;
-                    case CHROMA_SPLIT:
-                        rr=byteValue(i==0?44+168*a:36+114*c);
-                        gg=byteValue(i==0?24+123*b:87+137*a);
-                        bb=byteValue(i==0?133+120*c:68+140*b);
-                        break;
-                    default:break;
+                final double offset=i==0?0d:kind==Kind.FIRE_ICE?2d:
+                    (kind==Kind.DUO_CHASE||kind==Kind.CHROMA_SPLIT||
+                     kind==Kind.LASER_SWAP?1.6d:.78d);
+                if(kind==Kind.RAINBOW_FLOW){
+                    emitHue(bit,(float)((elapsed*(14d+speed*.25d)+offset*70d)%360d),.99f,.93f);
+                    continue;
                 }
-                rgb(bit,rr,gg,bb);
+                double location=elapsed*perSecond+offset;
+                int whole=(int)Math.floor(location);
+                double fraction=location-whole;
+                int from=Math.floorMod(whole,colors.length);
+                int to=(from+1)%colors.length;
+                double eased=.5d-.5d*Math.cos(Math.PI*fraction);
+                if(kind==Kind.PIXEL_PARTY){
+                    eased=fraction<.52d?0d:
+                        .5d-.5d*Math.cos(Math.PI*(fraction-.52d)/.48d);
+                }
+                float[] first=new float[3],second=new float[3];
+                Color.colorToHSV(0xFF000000|colors[from],first);
+                Color.colorToHSV(0xFF000000|colors[to],second);
+                float delta=(second[0]-first[0]+540f)%360f-180f;
+                float hue=(first[0]+(float)(delta*eased)+360f)%360f;
+                float sat=Math.max(calm?.90f:.96f,
+                    (float)(first[1]*(1d-eased)+second[1]*eased));
+                float value=calm?.49f:.90f;
+                if(kind==Kind.MATRIX_CODE)
+                    value=.57f+(float)(.27d*(.5d+.5d*Math.sin(elapsed*1.8+i)));
+                if(kind==Kind.COZY_GLOW)
+                    value=.40f+(float)(.12d*(.5d+.5d*Math.sin(elapsed*.7)));
+                if(kind==Kind.PIXEL_PARTY)value=.96f;
+                int color=Color.HSVToColor(new float[]{hue,Math.min(1f,sat),Math.min(1f,value)});
+                rgb(bit,Color.red(color),Color.green(color),Color.blue(color));
             }
         }
 
@@ -418,7 +434,13 @@ public final class LampEffects {
                 case DEEP_FOCUS:
                 case STARFIELD:
                 case DUO_CHASE:
-                case CHROMA_SPLIT: {
+                case CHROMA_SPLIT:
+                case NEON_RAVE:
+                case LASER_SWAP:
+                case TOXIC_GLOW:
+                case FIRE_ICE:
+                case PIXEL_PARTY:
+                case ELECTRIC_STORM: {
                     renderSmoothScene();
                     delay=pace(speed,310,165);
                     break;
