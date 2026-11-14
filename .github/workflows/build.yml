@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v1.6-final
+          name: YN360-Control-v1.7-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish FINAL v1.6 APK
+      - name: Publish FINAL v1.7 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.6.apk
-          if gh release view v1.6.0 >/dev/null 2>&1; then
-            gh release upload v1.6.0 YN360-Control-v1.6.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.7.apk
+          if gh release view v1.7.0 >/dev/null 2>&1; then
+            gh release upload v1.7.0 YN360-Control-v1.7.apk --clobber
           else
-            gh release create v1.6.0 YN360-Control-v1.6.apk \
-              --title "YN360 Control FINAL v1.6" \
-              --notes "18 autorskich, plynnych presetow gamingowych i ambientowych: Cyberpunk, Synthwave, RGB River, Plasma, Matrix Code, Neon Tunnel, Arcade Flow, Boss Aura, Galaxy, Aqua Ripple, Ice Cave, Space Drift, Lo-Fi Night, Cozy Glow, Deep Focus, Starfield, Duo Chase i Chroma Split. Strobe Turbo 60/105 ms oraz Snap 60/175 ms jako cele czasowe, zalezne od BLE. Wszystko w jednej sekcji. Uwazaj na intensywne blyski."
+            gh release create v1.7.0 YN360-Control-v1.7.apk \
+              --title "YN360 Control FINAL v1.7" \
+              --notes "24 vivid colour profiles with high-saturation HSV transitions instead of pastel RGB mixing; six new scenes Neon Rave Laser Swap Toxic Glow Fire Ice Pixel Party Electric Storm. Scene frames use transient BLE commands without writing to preferences on every frame. Colour-coded buttons, existing effects and independent lamps retained. Physical lamp verification recommended."
           fi
