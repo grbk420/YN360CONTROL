@@ -86,7 +86,7 @@
 </LinearLayout>
 <Button android:id="@+id/duoWaveBtn" android:layout_width="match_parent" android:layout_height="50dp" android:layout_margin="3dp" android:text="∞ Duo Wave • Dwa kolory na dwóch lampach" android:textAllCaps="false" android:textColor="#FFFFFF" android:backgroundTint="#26213F"/>
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Sceny działają w tle przy aktywnym powiadomieniu o sterowaniu Bluetooth." android:textSize="11sp" android:textColor="#A4B5D0" android:layout_marginTop="4dp" android:layout_marginBottom="6dp"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="PŁYNNE SCENY GAMING I AMBIENT" android:textSize="12sp" android:textStyle="bold" android:textColor="#B6A4E8" android:layout_marginTop="12dp" android:layout_marginBottom="5dp"/>
+
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
 <Button android:id="@+id/cyberpunkBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:layout_margin="2dp" android:minHeight="44dp" android:text="⚡ Cyberpunk" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#282440"/>
 <Button android:id="@+id/synthwaveBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:layout_margin="2dp" android:minHeight="44dp" android:text="🌇 Synthwave" android:textAllCaps="false" android:textSize="12sp" android:textColor="#F5F7FF" android:backgroundTint="#282440"/>
