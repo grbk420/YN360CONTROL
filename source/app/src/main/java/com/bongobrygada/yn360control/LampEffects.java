@@ -15,7 +15,37 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, DJ_INTRO, DJ_GROOVE, DJ_TRANSITION, DJ_BUILD_8, DJ_BUILD_16, DJ_PRE_DROP, DJ_DROP, DJ_BREAKDOWN, DJ_OUTRO, IDENTIFY
+    }
+
+    private static boolean isDj(Kind kind){
+        switch(kind){
+            case DJ_INTRO:
+            case DJ_GROOVE:
+            case DJ_TRANSITION:
+            case DJ_BUILD_8:
+            case DJ_BUILD_16:
+            case DJ_PRE_DROP:
+            case DJ_DROP:
+            case DJ_BREAKDOWN:
+            case DJ_OUTRO:
+                return true;
+            default:return false;
+        }
+    }
+    private static String djName(Kind kind){
+        switch(kind){
+            case DJ_INTRO:return "INTRO";
+            case DJ_GROOVE:return "GROOVE";
+            case DJ_TRANSITION:return "TRANSITION";
+            case DJ_BUILD_8:return "BUILD 8 → DROP";
+            case DJ_BUILD_16:return "BUILD 16 → DROP";
+            case DJ_PRE_DROP:return "PRE-DROP";
+            case DJ_DROP:return "DROP";
+            case DJ_BREAKDOWN:return "BREAKDOWN";
+            case DJ_OUTRO:return "OUTRO";
+            default:return "DJ";
+        }
     }
 
     private static boolean isMusic(Kind kind){
@@ -31,7 +61,7 @@ public final class LampEffects {
             case KICK_SNARE:
             case DUO_PINGPONG:
                 return true;
-            default:return false;
+            default:return isDj(kind);
         }
     }
     private static boolean isFastScene(Kind kind){
@@ -86,6 +116,17 @@ public final class LampEffects {
         }
         handler.post(s);
         return connectedMask;
+    }
+
+    /** Short UI status for the selected lamp(s), including build-up countdown. */
+    public String getDjStatus(int selectedMask){
+        for(int i=0;i<2;i++){
+            if((selectedMask&(1<<i))==0)continue;
+            Session session=owner[i];
+            if(session==null||!isDj(session.kind))continue;
+            return session.djStatus();
+        }
+        return "DJ Performance: wybierz scenę • lampy włączysz ręcznie";
     }
 
     /** Update every running BPM preset without restarting its colour cycle or losing beat phase. */
@@ -204,6 +245,7 @@ public final class LampEffects {
         volatile long startedAt=SystemClock.uptimeMillis();
         private long lastStrobeFrame=Long.MIN_VALUE;
         private long lastMusicFrame=Long.MIN_VALUE;
+        private final int[] lastDjFrame={-1,-1};
 
         Session(Kind k,int m,int b,int s,int r,int g,int bl) {
             kind=k; mask=m; brightness=clamp(b,0,255);
@@ -287,6 +329,116 @@ public final class LampEffects {
             }
             // Avoid drift: reschedule against monotonic uptime, not time after BLE writes.
             return Math.max(15,(lit?litMs:period)-within);
+        }
+
+        private long djElapsedBeats(){
+            return Math.max(0L,SystemClock.uptimeMillis()-startedAt);
+        }
+        private String djStatus(){
+            long ms=djElapsedBeats();
+            double beat=ms*(double)bpm/60000d;
+            if(kind==Kind.DJ_BUILD_8||kind==Kind.DJ_BUILD_16){
+                int bars=kind==Kind.DJ_BUILD_8?8:16;
+                double remaining=bars*4d-beat;
+                if(remaining<=0d)
+                    return "DROP AUTO • "+bpm+" BPM • puls i kolor";
+                return "BUILD-UP • "+Math.max(1,(int)Math.ceil(remaining/4d))+
+                    " taktów do DROP • "+bpm+" BPM";
+            }
+            return djName(kind)+" • "+bpm+" BPM"+
+                (kind==Kind.DJ_PRE_DROP?" • naciśnij DROP w wybranym momencie":"");
+        }
+
+        /** DJ show engine: saturated colour pads + short beat-aligned strobe accents.
+         * 8/16 bars means 32/64 quarter-note beats, then automatically DROP.
+         * Live manual DROP always overrides the countdown via start().
+         */
+        private long runDjPerformance(){
+            double beats=Math.max(0, SystemClock.uptimeMillis()-startedAt)*
+                (double)bpm/60000d;
+            Kind stage=kind;
+            if(kind==Kind.DJ_BUILD_8 && beats>=32d){
+                stage=Kind.DJ_DROP;beats-=32d;
+            }else if(kind==Kind.DJ_BUILD_16 && beats>=64d){
+                stage=Kind.DJ_DROP;beats-=64d;
+            }
+            long beat=(long)Math.floor(beats);
+            double phase=beats-beat;
+            double barPosition=(beat%4+phase)/4d;
+            double seconds=Math.max(0,SystemClock.uptimeMillis()-startedAt)/1000d;
+            int bars=kind==Kind.DJ_BUILD_8?8:kind==Kind.DJ_BUILD_16?16:0;
+            double buildup=bars==0?0d:Math.min(1d,beats/(bars*4d));
+            for(int i=0;i<2;i++){
+                int bit=1<<i;
+                if((mask&bit)==0||!lamps[i].isReady()||!lamps[i].isUserEnabled())continue;
+                double duo=(i==0?0d:1d);
+                double hue=215d;
+                double sat=.96d,value=.46d;
+                boolean white=false;
+                boolean blackout=false;
+                switch(stage){
+                    case DJ_INTRO:
+                        hue=208+66*wave(seconds*.20+duo*1.4);
+                        value=.19+.22*wave(seconds*.45+duo*.8);
+                        break;
+                    case DJ_GROOVE:
+                        hue=(beat/4%4==0?185:beat/4%4==1?310:beat/4%4==2?263:38)+
+                            (i==1?42:0);
+                        value=(phase<.21? .87:.39)+.08*wave(seconds*.85);
+                        break;
+                    case DJ_TRANSITION:
+                        hue=(210+seconds*36+duo*115)%360;
+                        value=.28+.54*wave(seconds*1.8+duo*1.5);
+                        white=beat%4==0&&phase<.14;
+                        break;
+                    case DJ_BUILD_8:
+                    case DJ_BUILD_16:
+                        hue=(252+55*wave(seconds*.8)+duo*75+seconds*13)%360;
+                        value=.20+.57*buildup+.13*wave(seconds*2.5);
+                        int accentEvery=buildup<.27?4:buildup<.58?2:1;
+                        white=beat%accentEvery==0&&phase<.17;
+                        if(buildup>.74 && phase>=.5 && phase<.67)white=true;
+                        if(buildup>.92 && phase>.68 && phase<.88)blackout=true;
+                        break;
+                    case DJ_PRE_DROP:
+                        hue=(285+duo*112+seconds*24)%360;
+                        value=.35+.31*wave(seconds*2.3);
+                        white=beat%2==0 && (phase<.18||(phase>.49&&phase<.64));
+                        blackout=beat%4==3 && phase>.62;
+                        break;
+                    case DJ_DROP:
+                        hue=(i==0?313:190)+(beat/2%4)*36;
+                        value=(phase<.25?.95:.76);
+                        white=phase<.16 && ((beat%4==0)||(i==0?beat%2==0:beat%2==1));
+                        if((mask&3)==3 && i==1 && beat%4==0)white=true;
+                        blackout=phase>.83 && beat%4==3;
+                        break;
+                    case DJ_BREAKDOWN:
+                        hue=190+75*wave(seconds*.25+duo*2.1);
+                        value=.10+.21*wave(seconds*.5+duo);
+                        break;
+                    case DJ_OUTRO:
+                        hue=12+32*wave(seconds*.17+duo);
+                        double tail=Math.max(.03d,1d-Math.max(0d,beats)/64d);
+                        value=.03+.40*tail;
+                        break;
+                    default:return 160;
+                }
+                if(blackout)value=.015d;
+                if(white){sat=.12d;value=.99d;}
+                int color=Color.HSVToColor(new float[]{
+                    (float)((hue+360d)%360d),(float)sat,(float)Math.min(1d,Math.max(.012d,value))});
+                int rr=Color.red(color),gg=Color.green(color),bb=Color.blue(color);
+                // Quantize subtle changes and avoid filling Bluetooth queues with
+                // repeated near-identical frames.
+                int key=(rr/8<<16)|(gg/8<<8)|(bb/8);
+                if(key!=lastDjFrame[i]){
+                    lastDjFrame[i]=key;
+                    rgb(bit,rr,gg,bb);
+                }
+            }
+            return stage==Kind.DJ_BREAKDOWN||stage==Kind.DJ_OUTRO||
+                stage==Kind.DJ_INTRO?140:65;
         }
 
         private long runMusicBeat(){
@@ -593,6 +745,18 @@ public final class LampEffects {
                 case KICK_SNARE:
                 case DUO_PINGPONG: {
                     delay=runMusicBeat();
+                    break;
+                }
+                case DJ_INTRO:
+                case DJ_GROOVE:
+                case DJ_TRANSITION:
+                case DJ_BUILD_8:
+                case DJ_BUILD_16:
+                case DJ_PRE_DROP:
+                case DJ_DROP:
+                case DJ_BREAKDOWN:
+                case DJ_OUTRO: {
+                    delay=runDjPerformance();
                     break;
                 }
                 case TRAFFIC_NEON: {
