@@ -256,6 +256,14 @@ public class BleLightController {
             .putString("last_lit_"+deviceAddress,hex.toString()).apply();
     }
 
+    /** Animated RGB frame: do not persist dozens of frames per second to SharedPreferences. */
+    public void sceneRgb(int r,int g,int b){
+        if(!userEnabled)return;
+        byte[] packet=new byte[]{(byte)0xAE,(byte)0xA1,
+            (byte)clamp255(r),(byte)clamp255(g),(byte)clamp255(b),0x56};
+        write(packet);
+    }
+
     public void rgb(int r,int g,int b){
         if(!userEnabled)return;
         int rr=clamp255(r),gg=clamp255(g),bb=clamp255(b);
