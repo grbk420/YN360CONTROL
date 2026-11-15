@@ -15,7 +15,7 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, DJ_INTRO, DJ_GROOVE, DJ_TRANSITION, DJ_BUILD_8, DJ_BUILD_16, DJ_PRE_DROP, DJ_DROP, DJ_BREAKDOWN, DJ_OUTRO, DJ_DROP_FLASH, DJ_STROBE_FILL, DJ_LASER_CLASH, DJ_OFFBEAT, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, DJ_INTRO, DJ_GROOVE, DJ_TRANSITION, DJ_BUILD_8, DJ_BUILD_16, DJ_PRE_DROP, DJ_DROP, DJ_BREAKDOWN, DJ_OUTRO, DJ_DROP_FLASH, DJ_STROBE_FILL, DJ_LASER_CLASH, DJ_OFFBEAT, HIPHOP_BOOM_BAP, HIPHOP_TRAP_HATS, HIPHOP_BOUNCE, HIPHOP_CHILL, HIPHOP_BREAK, IDENTIFY
     }
 
     private static boolean isDj(Kind kind){
@@ -68,6 +68,11 @@ public final class LampEffects {
             case BASS_BOUNCE:
             case KICK_SNARE:
             case DUO_PINGPONG:
+            case HIPHOP_BOOM_BAP:
+            case HIPHOP_TRAP_HATS:
+            case HIPHOP_BOUNCE:
+            case HIPHOP_CHILL:
+            case HIPHOP_BREAK:
                 return true;
             default:return isDj(kind);
         }
@@ -158,6 +163,8 @@ public final class LampEffects {
             session.startedAt=now-Math.round(beatPosition*60000d/next);
             session.bpm=next;
             session.lastMusicFrame=Long.MIN_VALUE;
+            java.util.Arrays.fill(session.lastDjFrame,-1);
+            java.util.Arrays.fill(session.lastHipHopFrame,-1);
         }
     }
     public int getMusicBpm(){return musicBpm;}
@@ -171,6 +178,8 @@ public final class LampEffects {
             handler.removeCallbacks(s);
             s.startedAt=SystemClock.uptimeMillis();
             s.lastMusicFrame=Long.MIN_VALUE;
+            java.util.Arrays.fill(s.lastDjFrame,-1);
+            java.util.Arrays.fill(s.lastHipHopFrame,-1);
             handler.post(s);
         }
         return !unique.isEmpty();
@@ -259,6 +268,7 @@ public final class LampEffects {
         private long lastStrobeFrame=Long.MIN_VALUE;
         private long lastMusicFrame=Long.MIN_VALUE;
         private final int[] lastDjFrame={-1,-1};
+        private final int[] lastHipHopFrame={-1,-1};
 
         Session(Kind k,int m,int b,int s,int r,int g,int bl) {
             kind=k; mask=m; brightness=clamp(b,0,255);
@@ -534,6 +544,80 @@ public final class LampEffects {
             }
             return stage==Kind.DJ_INTRO||stage==Kind.DJ_BREAKDOWN||
                 stage==Kind.DJ_OUTRO?90:55;
+        }
+
+        /** Hip-hop patterns are distinct 4/4 visual drum arrangements.
+         * Beat taps can re-phase these at any time; each lamp gets its own part.
+         * 105ms minimum hits keep ON/OFF changes within realistic BLE write spacing.
+         */
+        private long runHipHopBeat(){
+            double beatMs=60000d/Math.max(40,Math.min(200,bpm));
+            double elapsed=Math.max(0d,SystemClock.uptimeMillis()-startedAt);
+            double position=elapsed/beatMs;
+            long beat=(long)Math.floor(position);
+            int inBar=(int)(beat%4L);
+            long bar=beat/4L;
+            double phase=position-beat;
+            double on=Math.max(.23d,Math.min(.43d,105d/beatMs));
+            boolean down=phase<on;
+            boolean up=phase>=.52d&&phase<Math.min(.98d,.52d+on);
+            boolean kick=(inBar==0||inBar==2)&&down;
+            boolean snare=(inBar==1||inBar==3)&&down;
+            for(int i=0;i<2;i++){
+                int bit=1<<i;
+                if((mask&bit)==0||!lamps[i].isReady()||!lamps[i].isUserEnabled())continue;
+                boolean duo=(mask&3)==3;
+                boolean active=false,accent=false;
+                float hue=220f;
+                float level=.93f;
+                switch(kind){
+                    case HIPHOP_BOOM_BAP:
+                        // Classic kick on 1/3, snare on 2/4, separate colours.
+                        active=duo?(i==0?kick:snare):(kick||snare);
+                        accent=snare;
+                        hue=snare?188f:22f;
+                        break;
+                    case HIPHOP_TRAP_HATS:
+                        // Heavy 808 kick + up-beat hi-hats, alternating sides.
+                        active=duo?(i==0?kick:up):(kick||up);
+                        accent=up;
+                        hue=up?189f:282f;
+                        break;
+                    case HIPHOP_BOUNCE:
+                        // Syncopated offbeats in the second half of each measure.
+                        boolean bounce=(inBar==1||inBar==3)&&up;
+                        active=duo?(i==0?down:bounce):(down||bounce);
+                        accent=bounce;
+                        hue=bounce?43f:330f;
+                        break;
+                    case HIPHOP_CHILL:
+                        // Spacious, lower-intensity four-bar warm/cool lounge pulses.
+                        active=(inBar==0||inBar==2)&&phase<Math.max(.42d,on);
+                        if(duo)active=inBar==(i==0?0:2)&&phase<Math.max(.42d,on);
+                        hue=i==0?28f:201f;
+                        level=.40f;
+                        break;
+                    case HIPHOP_BREAK:
+                        // Short call/response fill on last beat of each bar.
+                        boolean finalFill=inBar==3&&up;
+                        active=duo?(i==0?(kick||finalFill):(snare||finalFill)):
+                            (kick||snare||finalFill);
+                        accent=finalFill;
+                        hue=finalFill?55f:snare?192f:7f;
+                        break;
+                    default:return 110;
+                }
+                int rgbColor=active?Color.HSVToColor(new float[]{
+                    hue,accent?.76f:.99f,level}):Color.BLACK;
+                int red=Color.red(rgbColor),green=Color.green(rgbColor),
+                    blue=Color.blue(rgbColor);
+                int key=(red/8<<16)|(green/8<<8)|(blue/8);
+                if(key!=lastHipHopFrame[i]){
+                    lastHipHopFrame[i]=key;
+                    rgb(bit,red,green,blue);
+                }
+            }
+            return 50;
         }
 
         private long runMusicBeat(){
@@ -850,8 +934,20 @@ public final class LampEffects {
                 case DJ_PRE_DROP:
                 case DJ_DROP:
                 case DJ_BREAKDOWN:
-                case DJ_OUTRO: {
+                case DJ_OUTRO:
+                case DJ_DROP_FLASH:
+                case DJ_STROBE_FILL:
+                case DJ_LASER_CLASH:
+                case DJ_OFFBEAT: {
                     delay=runDjPerformance();
+                    break;
+                }
+                case HIPHOP_BOOM_BAP:
+                case HIPHOP_TRAP_HATS:
+                case HIPHOP_BOUNCE:
+                case HIPHOP_CHILL:
+                case HIPHOP_BREAK: {
+                    delay=runHipHopBeat();
                     break;
                 }
                 case TRAFFIC_NEON: {
