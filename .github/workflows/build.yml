@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v1.11-final
+          name: YN360-Control-v1.12-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish FINAL v1.11 APK
+      - name: Publish FINAL v1.12 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.11.apk
-          if gh release view v1.11.0 >/dev/null 2>&1; then
-            gh release upload v1.11.0 YN360-Control-v1.11.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.12.apk
+          if gh release view v1.12.0 >/dev/null 2>&1; then
+            gh release upload v1.12.0 YN360-Control-v1.12.apk --clobber
           else
-            gh release create v1.11.0 YN360-Control-v1.11.apk \
-              --title "YN360 Control FINAL v1.11" \
-              --notes "YN360 Studio v1.11 DJ Performance: nine live stages Intro, Groove, Transition, Build 8/16 bars, Pre-Drop, Drop Now, Breakdown and Outro. Automatically enters Drop after 8 or 16 bars in 4/4 at custom BPM; bar countdown on screen; saturated RGB pads mixed with short strobe accents. Works for each enabled lamp individually or both, respects manual ON and foreground BLE service. Photo-sensitive caution; hardware response requires lamp testing."
+            gh release create v1.12.0 YN360-Control-v1.12.apk \
+              --title "YN360 Control FINAL v1.12" \
+              --notes "YN360 Studio 1.12: DJ Quick FX next to Drop with Strobe, Turbo, Snap, Rapid; Drop x Strobe with dark gaps and saturated hits; one-bar Flash Fill then automatic Drop. Intro/Groove/Transition/Build/Pre-Drop/Drop/Breakdown/Outro now use beat-gated contrast with actual black RGB pauses instead of sustained pads. Updated 8/16-bar buildup at selected BPM, independent BLE lamps preserved. Warning photosensitivity; physical light timing may vary."
           fi
