@@ -80,7 +80,7 @@
 <Button android:id="@+id/tapTempoBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:layout_margin="2dp" android:text="◉ TAP BPM • STUKAJ" android:textAllCaps="false" android:textSize="13sp" android:textColor="#FFFFFF" android:backgroundTint="#186877"/>
 <Button android:id="@+id/tapResetBtn" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp" android:layout_margin="2dp" android:text="↺ RESET TAP" android:textAllCaps="false" android:textSize="12sp" android:textColor="#FFFFFF" android:backgroundTint="#3C4A61"/>
 </LinearLayout>
-<TextView android:id="@+id/tapBpmResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Stukaj 12 razy w rytm utworu • wynik pojawi się tutaj" android:textSize="11sp" android:textColor="#C1E6E1" android:gravity="center" android:padding="4dp"/>
+<TextView android:id="@+id/tapBpmResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Stukaj 4 razy • wynik pokaże się od razu, następne kliknięcia synchronizują" android:textSize="11sp" android:textColor="#C1E6E1" android:gravity="center" android:padding="4dp"/>
 </LinearLayout>
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Szybkość animacji i stroboskopu" android:textColor="#E6E9FF" android:textSize="12sp"/>
 <SeekBar android:id="@+id/fxSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="45" android:progressTint="#A778FF" android:thumbTint="#D1B5FF"/>
