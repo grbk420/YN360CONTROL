@@ -28,12 +28,21 @@ public class MainActivity extends Activity {
     private SeekBar bpmSlider;
     private EditText bpmInput;
     private TextView bpmValue,tapBpmResult,djStatus,djBpmValue,mixStatus;
-    private Spinner djLamp1Mode,djLamp2Mode;
+    private Spinner djLamp1Mode,djLamp2Mode,musicPaletteSpinner;
+    private CheckBox djAutoApply;
+    private TextView djMixStatusL1,djMixStatusL2;
+    private boolean mixerCallbacksReady=false,mixerBatchChange=false;
+    private View musicMoreBody;
+    private Button musicMoreBtn,favoriteSaveBtn;
+    private LinearLayout favoritesList;
+    private final LinkedHashSet<String> favorites=new LinkedHashSet<>();
+    private String lastFavoriteKey=null,lastFavoriteName=null;
     private final Handler djUi=new Handler(Looper.getMainLooper());
     private final Runnable djTick=new Runnable(){
         @Override public void run(){
             if(djStatus!=null && lampEffects!=null)
                 djStatus.setText(lampEffects.getDjStatus(selectedMask()));
+            if(mixStatus!=null)refreshDjMixStatus();
             djUi.postDelayed(this,350);
         }
     };
@@ -271,6 +280,41 @@ public class MainActivity extends Activity {
         findViewById(R.id.liveSpectrumBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.SPECTRUM));
         findViewById(R.id.liveAmbientBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.AMBIENT_AUDIO));
         findViewById(R.id.liveDropBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.DROP_HUNTER));
+        findViewById(R.id.liveKickSwapBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.KICK_SWAP));
+        findViewById(R.id.liveHiHatBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.HIHAT_SPARK));
+        findViewById(R.id.liveRippleBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.BASS_RIPPLE));
+        findViewById(R.id.liveStepsBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.NEON_STEPS));
+        findViewById(R.id.liveVuBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.VU_METER));
+        findViewById(R.id.liveJumpBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.COLOR_JUMP));
+        findViewById(R.id.liveStrobeBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.STROBE_SYNC));
+        findViewById(R.id.liveWaveBtn).setOnClickListener(v->requestMusicLive(MusicReactiveController.ENERGY_WAVE));
+        musicPaletteSpinner=findViewById(R.id.musicPaletteSpinner);
+        ArrayAdapter<String> paletteAdapter=new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item,MusicReactiveController.PALETTE_NAMES);
+        paletteAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        musicPaletteSpinner.setAdapter(paletteAdapter);
+        musicPaletteSpinner.setSelection(Math.max(0,Math.min(
+            MusicReactiveController.PALETTE_NAMES.length-1,
+            prefs.getInt("music_palette",0))));
+        lightingSession.music.setPalette(musicPaletteSpinner.getSelectedItemPosition());
+        musicPaletteSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                lightingSession.music.setPalette(position);
+                prefs.edit().putInt("music_palette",position).apply();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent){}
+        });
+        musicMoreBtn=findViewById(R.id.musicMoreBtn);
+        musicMoreBody=findViewById(R.id.musicMoreBody);
+        boolean more=prefs.getBoolean("music_more",false);
+        musicMoreBody.setVisibility(more?View.VISIBLE:View.GONE);
+        musicMoreBtn.setText(more?"− Ukryj dodatkowe efekty":"＋ Więcej efektów muzycznych (8)");
+        musicMoreBtn.setOnClickListener(v->{
+            boolean show=musicMoreBody.getVisibility()!=View.VISIBLE;
+            musicMoreBody.setVisibility(show?View.VISIBLE:View.GONE);
+            musicMoreBtn.setText(show?"− Ukryj dodatkowe efekty":"＋ Więcej efektów muzycznych (8)");
+            prefs.edit().putBoolean("music_more",show).apply();
+        });
         findViewById(R.id.liveStopBtn).setOnClickListener(v->{
             stopMusicForMask(selectedMask());
             musicStatus.setText("MUSIC LIVE zatrzymany dla "+targetLabel(selectedMask()));
@@ -292,6 +336,7 @@ public class MainActivity extends Activity {
         setupFxCategories();
         setupBpmControls();
         setupDjMixer();
+        setupFavorites();
         new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 900);
     }
 
@@ -1092,30 +1137,29 @@ public class MainActivity extends Activity {
             (aligned?" • SYNC obu lamp":" • tempo gotowe"));
     }
 
-    /** Only one preset category is visible at once. This keeps a large library manageable. */
-    /** Seven compact tabs. One visible panel at a time, no accordion list. */
+    /** Eight compact tabs; BPM controls stay above them at all times. */
     private static final int[] FX_HEADERS={
-        R.id.catDjHeader,R.id.catLiveHeader,R.id.catBpmHeader,
+        R.id.catDjHeader,R.id.catLiveHeader,R.id.catFavHeader,R.id.catBpmHeader,
         R.id.catGamingHeader,R.id.catAmbientHeader,R.id.catDualHeader,
         R.id.catFlashHeader
     };
     private static final int[] FX_BODIES={
-        R.id.catDjBody,R.id.catLiveBody,R.id.catBpmBody,
+        R.id.catDjBody,R.id.catLiveBody,R.id.catFavBody,R.id.catBpmBody,
         R.id.catGamingBody,R.id.catAmbientBody,R.id.catDualBody,
         R.id.catFlashBody
     };
     private void setupFxCategories(){
-        int selected=prefs.getInt("fx_tab_113",0);
-        if(selected<0||selected>=FX_HEADERS.length)selected=0;
-        showFxCategory(selected);
+        int chosen=prefs.getInt("fx_tab_114",0);
+        if(chosen<0||chosen>=FX_HEADERS.length)chosen=0;
+        showFxCategory(chosen);
         for(int i=0;i<FX_HEADERS.length;i++){
-            final int chosen=i;
-            findViewById(FX_HEADERS[i]).setOnClickListener(v->showFxCategory(chosen));
+            final int index=i;
+            findViewById(FX_HEADERS[i]).setOnClickListener(v->showFxCategory(index));
         }
     }
-    private void showFxCategory(int selected){
+    private void showFxCategory(int chosen){
         for(int i=0;i<FX_BODIES.length;i++){
-            boolean active=i==selected;
+            boolean active=i==chosen;
             findViewById(FX_BODIES[i]).setVisibility(active?View.VISIBLE:View.GONE);
             ((Button)findViewById(FX_HEADERS[i])).setBackgroundTintList(
                 android.content.res.ColorStateList.valueOf(
@@ -1123,7 +1167,8 @@ public class MainActivity extends Activity {
             ((Button)findViewById(FX_HEADERS[i])).setTextColor(
                 android.graphics.Color.parseColor(active?"#FFFFFF":"#B9C3DD"));
         }
-        prefs.edit().putInt("fx_tab_113",selected).apply();
+        prefs.edit().putInt("fx_tab_114",chosen).apply();
+        if(chosen==2 && favoritesList!=null)renderFavorites();
     }
 
     /** Two independent sessions, with one-tap swapping of selected roles. */
