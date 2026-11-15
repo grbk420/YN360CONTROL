@@ -9,11 +9,29 @@ import android.os.SystemClock;
  */
 public final class MusicReactiveController {
     public static final int BASS_REACTOR=0, CLUB_DUO=1, SPECTRUM=2,
-            AMBIENT_AUDIO=3, DROP_HUNTER=4;
+            AMBIENT_AUDIO=3, DROP_HUNTER=4,
+            KICK_SWAP=5, HIHAT_SPARK=6, BASS_RIPPLE=7, NEON_STEPS=8,
+            VU_METER=9, COLOR_JUMP=10, STROBE_SYNC=11, ENERGY_WAVE=12;
+    public static final String[] PALETTE_NAMES={
+        "Classic • oryginał","Cyber Neon • cyjan/róż","Fire • pomarańcz/czerwień",
+        "Ocean • błękit/turkus","Toxic • zieleń/żółty",
+        "Rave Rainbow • wielobarwny","Ultra Violet • fiolet/niebieski",
+        "Sunset • koral/róż"
+    };
+    private static final float[][] PALETTE_HUES={
+        {16f,210f,300f,55f},
+        {315f,180f,260f,350f},
+        {17f,42f,2f,60f},
+        {198f,174f,228f,152f},
+        {108f,65f,141f,85f},
+        {20f,180f,280f,328f},
+        {267f,223f,310f,198f},
+        {345f,18f,44f,305f}
+    };
     private final BleLightController[] lamps;
     private volatile int activeMask=0;
     private final int[] mode={BASS_REACTOR,BASS_REACTOR};
-    private volatile int sensitivity=65,brightness=185;
+    private volatile int sensitivity=65,brightness=185,palette=0;
     private double low=0,mid=0,prev=0,avgBass=.016,avgHigh=.015,avgRms=.018;
     private long lastKick=0,lastHat=0,lastFrame=0,lastDrop=0;
     private int kickCounter=0;
@@ -27,7 +45,7 @@ public final class MusicReactiveController {
         for(int i=0;i<2;i++)if((mask&(1<<i))!=0){
             if(lamps[i].isReady()&&lamps[i].isUserEnabled()){
                 activeMask|=(1<<i);
-                mode[i]=Math.max(0,Math.min(4,newMode));
+                mode[i]=Math.max(0,Math.min(12,newMode));
             }
         }
         sensitivity=Math.max(0,Math.min(100,newSensitivity));
@@ -38,6 +56,12 @@ public final class MusicReactiveController {
     public int getMask(){return activeMask;}
     public int getActivity(){return activity;}
     public void setSensitivity(int value){sensitivity=Math.max(0,Math.min(100,value));}
+    /** Live palette selection does not restart the microphone service. */
+    public void setPalette(int selected){palette=Math.max(0,Math.min(PALETTE_HUES.length-1,selected));}
+    public int getPalette(){return palette;}
+    public synchronized int getMode(int lampIndex){
+        return lampIndex>=0&&lampIndex<2&&(activeMask&(1<<lampIndex))!=0?mode[lampIndex]:-1;
+    }
 
     /** PCM 16-bit mono 16 kHz: estimate kick energy and high-frequency accents. */
     public void process(short[] pcm,int n){
@@ -110,8 +134,56 @@ public final class MusicReactiveController {
                 boolean drop=now-lastDrop<220;
                 hue=drop?48f:(i==0?284f:195f);
                 level=drop?.98:.12+.36*energy;
+            }else if(m==KICK_SWAP){
+                // Every bass onset advances colour; one lamp alternates with the other.
+                hue=(kickCounter+i)%2==0?184f:318f;
+                level=kickActive?.98:.04;
+            }else if(m==HIHAT_SPARK){
+                hue=hatActive?45f:262f;
+                level=hatActive?.98:.06+.20*energy;
+                sat=hatActive?.10f:.98f;
+            }else if(m==BASS_RIPPLE){
+                double decay=Math.max(0,1-(now-lastKick)/580d);
+                hue=(float)((185+kickCounter*48+i*120)%360);
+                level=.06+.91*decay*decay;
+            }else if(m==NEON_STEPS){
+                hue=(float)((kickCounter*67+i*140)%360);
+                level=kickActive?.95:.13+.24*energy;
+            }else if(m==VU_METER){
+                hue=(float)(220d-185d*energy+(i==1?45d:0d));
+                level=.06+.90*energy;
+            }else if(m==COLOR_JUMP){
+                hue=(float)((kickCounter*91+i*160)%360);
+                level=kickActive?.99:.08+.16*energy;
+            }else if(m==STROBE_SYNC){
+                hue=kickCounter%2==0?35f:294f;
+                level=kickActive?.99:.012;
+                sat=kickActive?.17f:.98f;
+            }else if(m==ENERGY_WAVE){
+                hue=(float)((ambientHue+kickCounter*7+i*110)%360);
+                level=.12+.70*Math.sqrt(energy);
             }
-            level=Math.max(.02,Math.min(1d,level));
+            // Palette governs hues across *all* microphone modes, but the mode
+            // remains responsible for deciding WHEN and HOW the lamp reacts.
+            int selected=palette;
+            if(selected>0){
+                float[] hues=PALETTE_HUES[selected];
+                int index=(kickCounter+(m==SPECTRUM?2:0)+(m==DROP_HUNTER?1:0))%4;
+                float primary=hues[(index+i)%4];
+                float alternate=hues[(index+1+i)%4];
+                if(m==BASS_REACTOR||m==KICK_SWAP||m==BASS_RIPPLE||
+                   m==STROBE_SYNC||m==COLOR_JUMP)
+                    hue=kickActive?primary:alternate;
+                else if(m==CLUB_DUO)
+                    hue=i==0?primary:alternate;
+                else if(m==SPECTRUM||m==VU_METER)
+                    hue=(primary+(float)(bass/(bass+high+.0001d))*68f)%360f;
+                else if(m==AMBIENT_AUDIO||m==ENERGY_WAVE)
+                    hue=(primary+(ambientHue%28f))%360f;
+                else hue=primary;
+                if(m!=HIHAT_SPARK&&m!=STROBE_SYNC)sat=.97f;
+            }
+            level=Math.max(.015,Math.min(1d,level));
             int c=Color.HSVToColor(new float[]{(hue+360)%360,sat,
                 Math.min(1f,(float)(level*brightness/255d))});
             lamps[i].sceneRgb(Color.red(c),Color.green(c),Color.blue(c));
