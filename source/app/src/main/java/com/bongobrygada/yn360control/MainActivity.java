@@ -1028,7 +1028,7 @@ public class MainActivity extends Activity {
         tapBpmResult=findViewById(R.id.tapBpmResult);
         djStatus=findViewById(R.id.djStatus);
         djBpmValue=findViewById(R.id.djBpmValue);
-        djBpmValue.setOnClickListener(v->showFxCategory(2));
+        djBpmValue.setOnClickListener(v->showFxCategory(3));
         selectedBpm=Math.max(40,Math.min(200,prefs.getInt("custom_bpm",125)));
         lampEffects.setMusicBpm(selectedBpm);
         bpmSlider.setProgress(selectedBpm-40);
