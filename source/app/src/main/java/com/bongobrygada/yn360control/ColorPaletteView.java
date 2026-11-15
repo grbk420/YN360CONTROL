@@ -71,13 +71,15 @@ public final class ColorPaletteView extends View {
         invalidate();
     }
 
-    /** Tap chooses a colour; a horizontal drag edits; vertical swipes scroll the whole page. */
+    /** Touch and drag in any direction to update the selected colour immediately. */
     @Override public boolean onTouchEvent(MotionEvent e){
         switch(e.getActionMasked()){
             case MotionEvent.ACTION_DOWN:
                 downX=e.getX();downY=e.getY();
                 choosingColor=false;scrollingGesture=false;
-                if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);
+                if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);
+                chooseAt(downX,downY);
+                choosingColor=true;
                 return true;
             case MotionEvent.ACTION_POINTER_DOWN:
                 choosingColor=false;scrollingGesture=true;
@@ -87,17 +89,13 @@ public final class ColorPaletteView extends View {
                 if(scrollingGesture)return false;
                 float dx=e.getX()-downX,dy=e.getY()-downY;
                 if(!choosingColor){
-                    if(Math.abs(dy)>touchSlop && Math.abs(dy)>Math.abs(dx)){
-                        scrollingGesture=true;
-                        if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);
-                        return false;
-                    }
-                    if(Math.abs(dx)>touchSlop && Math.abs(dx)>Math.abs(dy)*1.2f){
+                    
+                    if(Math.hypot(dx,dy)>touchSlop){
                         choosingColor=true;
                         if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);
                     }
                 }
-                if(choosingColor)chooseAt(e.getX(),e.getY());
+                chooseAt(e.getX(),e.getY());
                 return true;
             case MotionEvent.ACTION_UP:
                 if(!scrollingGesture){
