@@ -465,9 +465,11 @@ public final class LampEffects {
                     case DJ_STROBE_FILL:
                         // One 4-beat flashing fill; resumes DROP without further tapping.
                         hue=i==0?45f:281f;
-                        double sub=(phase*4d)%1d;
-                        int slice=(int)(phase*4d);
-                        lightOn=sub<.42d && (!duo||slice%2==i);
+                        // Eighth-note accents (rather than 16ths) leave enough
+                        // radio time for a visible ON and OFF command at club BPM.
+                        double sub=(phase*2d)%1d;
+                        int slice=(int)(phase*2d);
+                        lightOn=sub<.38d && (!duo||slice%2==i);
                         whiteHit=lightOn&&slice%2==0;
                         level=lightOn?1d:0d;
                         break;
