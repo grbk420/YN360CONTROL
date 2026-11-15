@@ -40,17 +40,17 @@ jobs:
       - name: Upload stable APK
         uses: actions/upload-artifact@v4
         with:
-          name: YN360-Control-v1.14-final
+          name: YN360-Control-v1.15-final
           path: source/app/build/outputs/apk/release/app-release.apk
-      - name: Publish FINAL v1.14 APK
+      - name: Publish FINAL v1.15 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.14.apk
-          if gh release view v1.14.0 >/dev/null 2>&1; then
-            gh release upload v1.14.0 YN360-Control-v1.14.apk --clobber
+          cp source/app/build/outputs/apk/release/app-release.apk YN360-Control-v1.15.apk
+          if gh release view v1.15.0 >/dev/null 2>&1; then
+            gh release upload v1.15.0 YN360-Control-v1.15.apk --clobber
           else
-            gh release create v1.14.0 YN360-Control-v1.14.apk \
-              --title "YN360 Control FINAL v1.14" \
-              --notes "YN360 Studio v1.14: global 40-200 BPM and 12-tap tempo above compact tabs, 13 music microphone modes, 8 live RGB colour palettes, optional More Music section, new persistent Favorites tab for scenes/audio/DJ mixes. DJ Live has independent compact L1/L2 cards, Auto LIVE on selection, separate Start/Stop, instant swap, real running-mode status, ready one-touch combinations. Retains existing signed app and manual lamp activation. Physical light response and microphone remain device-dependent."
+            gh release create v1.15.0 YN360-Control-v1.15.apk \
+              --title "YN360 Control FINAL v1.15" \
+              --notes "YN360 Studio v1.15: FIX four DJ scenes not dispatched by the animation switch (Laser Clash, Offbeat Club, Drop x Strobe, One Bar Fill); BPM tap auto-detection after four taps with continuous refinement and sync on further taps, rolling 12-sample buffer; Hip-Hop/Trap Boom Bap, 808 Hats, Bounce, Chill Hop and Breakbeat in CLUB and dual-lamp mixer; Ustaw BPM button fits Samsung phone widths. No changes to working microphone modes. BLE physical device tests still recommended."
           fi
