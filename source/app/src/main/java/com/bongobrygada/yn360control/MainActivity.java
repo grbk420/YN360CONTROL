@@ -58,13 +58,18 @@ public class MainActivity extends Activity {
         LampEffects.Kind.DJ_LASER_CLASH,LampEffects.Kind.DJ_OFFBEAT,
         LampEffects.Kind.STROBE,LampEffects.Kind.STROBE_TURBO,
         LampEffects.Kind.STROBE_SNAP,LampEffects.Kind.STROBE_RAPID,
-        LampEffects.Kind.AURORA
+        LampEffects.Kind.AURORA,
+        LampEffects.Kind.HIPHOP_BOOM_BAP,LampEffects.Kind.HIPHOP_TRAP_HATS,
+        LampEffects.Kind.HIPHOP_BOUNCE,LampEffects.Kind.HIPHOP_CHILL,
+        LampEffects.Kind.HIPHOP_BREAK
     };
     private static final String[] MIX_LABELS={
         "■ Bez efektu","🌈 RGB River","💜 Neon Rave","🎛 Groove BPM",
         "🥁 Techno Kick BPM","⚡ DJ Drop","🔥 Drop × Strobe",
         "💠 Laser Clash","◉ Offbeat Club","⚡ Strobe",
-        "⚡ Turbo","⚡ Snap","⚡ Rapid","🌌 Aurora Flow"
+        "⚡ Turbo","⚡ Snap","⚡ Rapid","🌌 Aurora Flow",
+        "🥁 Boom Bap","🎩 Trap 808 + Hats","🎧 Hip-Hop Bounce",
+        "🌙 Chill Hop","✂ Hip-Hop Break"
     };
     private TextView musicStatus;
     private static final String[] LIVE_NAMES={
