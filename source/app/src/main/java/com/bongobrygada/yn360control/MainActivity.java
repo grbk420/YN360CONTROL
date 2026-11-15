@@ -27,7 +27,8 @@ public class MainActivity extends Activity {
     private SeekBar micSensitivity;
     private SeekBar bpmSlider;
     private EditText bpmInput;
-    private TextView bpmValue,tapBpmResult,djStatus;
+    private TextView bpmValue,tapBpmResult,djStatus,djBpmValue,mixStatus;
+    private Spinner djLamp1Mode,djLamp2Mode;
     private final Handler djUi=new Handler(Looper.getMainLooper());
     private final Runnable djTick=new Runnable(){
         @Override public void run(){
@@ -38,6 +39,22 @@ public class MainActivity extends Activity {
     };
     private final ArrayDeque<Long> recentTaps=new ArrayDeque<>();
     private int selectedBpm=125;
+    private static final int TAP_TARGET=12;
+    private static final LampEffects.Kind[] MIX_KINDS={
+        null,LampEffects.Kind.RAINBOW_FLOW,LampEffects.Kind.NEON_RAVE,
+        LampEffects.Kind.DJ_GROOVE,LampEffects.Kind.TECHNO_KICK,
+        LampEffects.Kind.DJ_DROP,LampEffects.Kind.DJ_DROP_FLASH,
+        LampEffects.Kind.DJ_LASER_CLASH,LampEffects.Kind.DJ_OFFBEAT,
+        LampEffects.Kind.STROBE,LampEffects.Kind.STROBE_TURBO,
+        LampEffects.Kind.STROBE_SNAP,LampEffects.Kind.STROBE_RAPID,
+        LampEffects.Kind.AURORA
+    };
+    private static final String[] MIX_LABELS={
+        "■ Bez efektu","🌈 RGB River","💜 Neon Rave","🎛 Groove BPM",
+        "🥁 Techno Kick BPM","⚡ DJ Drop","🔥 Drop × Strobe",
+        "💠 Laser Clash","◉ Offbeat Club","⚡ Strobe",
+        "⚡ Turbo","⚡ Snap","⚡ Rapid","🌌 Aurora Flow"
+    };
     private TextView musicStatus;
     private static final int MIC_REQUEST=306;
     private int pendingMicMode=-1,pendingMicMask=0;
@@ -183,6 +200,8 @@ public class MainActivity extends Activity {
         findViewById(R.id.djBuild16Btn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_BUILD_16,"DJ • BUILD 16 TAKTÓW"));
         findViewById(R.id.djPreDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_PRE_DROP,"DJ • PRE-DROP"));
         findViewById(R.id.djDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_DROP,"DJ • DROP NOW"));
+        findViewById(R.id.djLaserClashBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_LASER_CLASH,"DJ • LASER CLASH"));
+        findViewById(R.id.djOffbeatBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_OFFBEAT,"DJ • OFFBEAT CLUB"));
         findViewById(R.id.djDropFlashBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_DROP_FLASH,"DJ • DROP × STROBE"));
         findViewById(R.id.djFillBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_STROBE_FILL,"DJ • 1 BAR FILL → DROP"));
         findViewById(R.id.djQuickStrobeBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE,"DJ • STROBE"));
@@ -272,6 +291,7 @@ public class MainActivity extends Activity {
         setupCollapsibleSections();
         setupFxCategories();
         setupBpmControls();
+        setupDjMixer();
         new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 900);
     }
 
@@ -955,11 +975,14 @@ public class MainActivity extends Activity {
         bpmValue=findViewById(R.id.bpmValue);
         tapBpmResult=findViewById(R.id.tapBpmResult);
         djStatus=findViewById(R.id.djStatus);
+        djBpmValue=findViewById(R.id.djBpmValue);
+        djBpmValue.setOnClickListener(v->showFxCategory(2));
         selectedBpm=Math.max(40,Math.min(200,prefs.getInt("custom_bpm",125)));
         lampEffects.setMusicBpm(selectedBpm);
         bpmSlider.setProgress(selectedBpm-40);
         bpmInput.setText(String.valueOf(selectedBpm));
         bpmValue.setText(selectedBpm+" BPM");
+        djBpmValue.setText("🎵 "+selectedBpm+" BPM • zmień");
         bpmSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
             @Override public void onProgressChanged(SeekBar bar,int p,boolean fromUser){
                 if(fromUser)setSelectedBpm(p+40);
@@ -977,7 +1000,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.tapTempoBtn).setOnClickListener(v->tapTempo());
         findViewById(R.id.tapResetBtn).setOnClickListener(v->{
             recentTaps.clear();
-            tapBpmResult.setText("Pomiar wyczyszczony • wystukaj minimum 4 razy");
+            tapBpmResult.setText("Pomiar wyczyszczony • wystukaj 12 razy");
         });
     }
 
@@ -985,6 +1008,7 @@ public class MainActivity extends Activity {
         selectedBpm=Math.max(40,Math.min(200,bpm));
         lampEffects.setMusicBpm(selectedBpm);
         bpmValue.setText(selectedBpm+" BPM");
+        if(djBpmValue!=null)djBpmValue.setText("🎵 "+selectedBpm+" BPM • zmień");
         if(bpmSlider.getProgress()!=selectedBpm-40)
             bpmSlider.setProgress(selectedBpm-40);
         String desired=String.valueOf(selectedBpm);
@@ -1012,76 +1036,185 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Tap Tempo measures the interval between recent finger taps using monotonic time.
-     * Outlying fastest and slowest intervals are removed when enough samples exist.
-     * Four taps (3 gaps) are needed to update the beat, avoiding guesswork from one tap.
+    /** Exactly 12 finger taps (11 intervals) before first BPM determination.
+     * Rolling 12-tap window keeps measuring afterward. Robust median-based
+     * outlier rejection protects against an accidental uneven finger press.
      */
     private void tapTempo(){
         long now=SystemClock.elapsedRealtime();
         if(!recentTaps.isEmpty()){
             long gap=now-recentTaps.peekLast();
             if(gap>2300L)recentTaps.clear();
-            else if(gap<225L)return; // double taps are not counted
+            else if(gap<225L)return;
         }
         recentTaps.addLast(now);
-        while(recentTaps.size()>9)recentTaps.removeFirst();
-        if(recentTaps.size()<4){
-            tapBpmResult.setText("TAP BPM • "+recentTaps.size()+
-                "/4 • stukaj w każde uderzenie basu");
+        while(recentTaps.size()>TAP_TARGET)recentTaps.removeFirst();
+        if(recentTaps.size()<TAP_TARGET){
+            tapBpmResult.setText("TAP BPM • "+recentTaps.size()+"/"+TAP_TARGET+
+                " uderzeń • stukaj równo do basu");
             return;
         }
-        long[] intervals=new long[recentTaps.size()-1];
-        long previous=-1;
-        int n=0;
-        for(long timestamp:recentTaps){
-            if(previous>=0)intervals[n++]=timestamp-previous;
-            previous=timestamp;
+        long[] gaps=new long[TAP_TARGET-1];
+        long prev=-1L;int n=0;
+        for(long time:recentTaps){
+            if(prev>=0)gaps[n++]=time-prev;
+            prev=time;
         }
-        java.util.Arrays.sort(intervals);
-        int start=n>=5?1:0,end=n>=5?n-1:n;
-        double sum=0;
-        for(int i=start;i<end;i++)sum+=intervals[i];
-        double average=sum/(end-start);
-        int measured=(int)Math.round(60000d/average);
+        long[] sorted=gaps.clone();
+        java.util.Arrays.sort(sorted);
+        double median=sorted[sorted.length/2];
+        double sum=0d,squareSum=0d;int accepted=0;
+        for(long gap:gaps){
+            if(Math.abs(gap-median)>Math.max(65d,median*.19d))continue;
+            sum+=gap;squareSum+=gap*gap;accepted++;
+        }
+        if(accepted<8){
+            tapBpmResult.setText("TAP • 12/12 • rytm nieregularny, stukaj dalej");
+            return;
+        }
+        double mean=sum/accepted;
+        double variance=Math.max(0d,squareSum/accepted-mean*mean);
+        double jitter=Math.sqrt(variance)/mean;
+        if(jitter>.16d){
+            tapBpmResult.setText("TAP • 12/12 • zbyt duże różnice, spróbuj jeszcze");
+            return;
+        }
+        int measured=(int)Math.round(60000d/mean);
         if(measured<40||measured>200){
-            tapBpmResult.setText("Wystukano około "+measured+
-                " BPM • poza skalą 40–200. Spróbuj równo do ćwierćnut.");
+            tapBpmResult.setText("Tempo "+measured+" BPM poza zakresem 40–200");
             return;
         }
         setSelectedBpm(measured);
-        boolean aligned=lampEffects.syncMusic(selectedMask());
-        tapBpmResult.setText("TAP BPM: "+measured+
-            " • "+n+" odstępy • "+(aligned?"zsynchronizowano lampy":"tempo gotowe do uruchomienia"));
+        boolean aligned=lampEffects.syncMusic(3);
+        int consistency=Math.max(0,100-(int)(jitter*300d));
+        tapBpmResult.setText("TAP BPM: "+measured+" • "+accepted+
+            "/11 zgodnych odstępów • stabilność "+consistency+"%"+
+            (aligned?" • SYNC obu lamp":" • tempo gotowe"));
     }
 
     /** Only one preset category is visible at once. This keeps a large library manageable. */
+    /** Seven compact tabs. One visible panel at a time, no accordion list. */
+    private static final int[] FX_HEADERS={
+        R.id.catDjHeader,R.id.catLiveHeader,R.id.catBpmHeader,
+        R.id.catGamingHeader,R.id.catAmbientHeader,R.id.catDualHeader,
+        R.id.catFlashHeader
+    };
+    private static final int[] FX_BODIES={
+        R.id.catDjBody,R.id.catLiveBody,R.id.catBpmBody,
+        R.id.catGamingBody,R.id.catAmbientBody,R.id.catDualBody,
+        R.id.catFlashBody
+    };
     private void setupFxCategories(){
-        final int[] headers={
-            R.id.catLiveHeader,R.id.catBpmHeader,R.id.catGamingHeader,
-            R.id.catAmbientHeader,R.id.catDualHeader,R.id.catFlashHeader
-        };
-        int selected=prefs.getInt("fx_category",0);
-        if(selected<0||selected>=headers.length)selected=0;
+        int selected=prefs.getInt("fx_tab_113",0);
+        if(selected<0||selected>=FX_HEADERS.length)selected=0;
         showFxCategory(selected);
-        for(int i=0;i<headers.length;i++){
-            final int index=i;
-            findViewById(headers[i]).setOnClickListener(v->showFxCategory(index));
+        for(int i=0;i<FX_HEADERS.length;i++){
+            final int chosen=i;
+            findViewById(FX_HEADERS[i]).setOnClickListener(v->showFxCategory(chosen));
         }
     }
     private void showFxCategory(int selected){
-        int[] panels={R.id.catLiveBody,R.id.catBpmBody,R.id.catGamingBody,
-            R.id.catAmbientBody,R.id.catDualBody,R.id.catFlashBody};
-        int[] headers={R.id.catLiveHeader,R.id.catBpmHeader,R.id.catGamingHeader,
-            R.id.catAmbientHeader,R.id.catDualHeader,R.id.catFlashHeader};
-        for(int i=0;i<panels.length;i++){
+        for(int i=0;i<FX_BODIES.length;i++){
             boolean active=i==selected;
-            findViewById(panels[i]).setVisibility(active?View.VISIBLE:View.GONE);
-            ((Button)findViewById(headers[i])).setBackgroundTintList(
+            findViewById(FX_BODIES[i]).setVisibility(active?View.VISIBLE:View.GONE);
+            ((Button)findViewById(FX_HEADERS[i])).setBackgroundTintList(
                 android.content.res.ColorStateList.valueOf(
-                    android.graphics.Color.parseColor(active?"#5942A0":"#202B44")));
+                    android.graphics.Color.parseColor(active?"#6650AD":"#242F48")));
+            ((Button)findViewById(FX_HEADERS[i])).setTextColor(
+                android.graphics.Color.parseColor(active?"#FFFFFF":"#B9C3DD"));
         }
-        prefs.edit().putInt("fx_category",selected).apply();
+        prefs.edit().putInt("fx_tab_113",selected).apply();
     }
+
+    /** Two independent sessions, with one-tap swapping of selected roles. */
+    private void setupDjMixer(){
+        djLamp1Mode=findViewById(R.id.djLamp1Mode);
+        djLamp2Mode=findViewById(R.id.djLamp2Mode);
+        mixStatus=findViewById(R.id.djMixStatus);
+        ArrayAdapter<String> adapter1=new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item,MIX_LABELS);
+        adapter1.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        ArrayAdapter<String> adapter2=new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item,MIX_LABELS);
+        adapter2.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        djLamp1Mode.setAdapter(adapter1);djLamp2Mode.setAdapter(adapter2);
+        djLamp1Mode.setSelection(Math.max(0,Math.min(MIX_KINDS.length-1,
+            prefs.getInt("dj_mix_l1",1))));
+        djLamp2Mode.setSelection(Math.max(0,Math.min(MIX_KINDS.length-1,
+            prefs.getInt("dj_mix_l2",11))));
+        findViewById(R.id.djMixStartBtn).setOnClickListener(v->applyDjMix());
+        findViewById(R.id.djMixSwapBtn).setOnClickListener(v->{
+            int a=djLamp1Mode.getSelectedItemPosition();
+            int b=djLamp2Mode.getSelectedItemPosition();
+            djLamp1Mode.setSelection(b);djLamp2Mode.setSelection(a);
+            applyDjMix();
+        });
+        findViewById(R.id.djMixColorStrobeBtn).setOnClickListener(v->{
+            djLamp1Mode.setSelection(1);djLamp2Mode.setSelection(11);applyDjMix();
+        });
+        findViewById(R.id.djMixStrobeColorBtn).setOnClickListener(v->{
+            djLamp1Mode.setSelection(11);djLamp2Mode.setSelection(1);applyDjMix();
+        });
+        findViewById(R.id.djMixGrooveSnapBtn).setOnClickListener(v->{
+            djLamp1Mode.setSelection(3);djLamp2Mode.setSelection(11);applyDjMix();
+        });
+        findViewById(R.id.djMixStop1Btn).setOnClickListener(v->stopDjLamp(1));
+        findViewById(R.id.djMixStop2Btn).setOnClickListener(v->stopDjLamp(2));
+        refreshDjMixStatus();
+    }
+    private void stopDjLamp(int mask){
+        lampEffects.stop(mask);
+        stopMusicForMask(mask);
+        if(!lightingSession.hasRunningScenes()){
+            try{stopService(new Intent(this,EffectsForegroundService.class));}
+            catch(Exception ignored){}
+        }
+        refreshDjMixStatus();
+        status.setText("Zatrzymano efekt • "+targetLabel(mask)+
+            " (lampa nie jest wyłączana)");
+    }
+    private void applyDjMix(){
+        final int[] chosen={
+            djLamp1Mode.getSelectedItemPosition(),
+            djLamp2Mode.getSelectedItemPosition()};
+        int enabled=enabledMask(3);
+        if(enabled==0){
+            mixStatus.setText("Włącz ręcznie co najmniej jedną lampę i połącz Bluetooth");
+            return;
+        }
+        int active=0;
+        for(int i=0;i<2;i++){
+            int bit=1<<i,index=chosen[i];
+            if((enabled&bit)==0)continue; // do not turn on an off lamp
+            if(index<0||index>=MIX_KINDS.length)continue;
+            if(MIX_KINDS[index]==null){
+                stopDjLamp(bit);
+                continue;
+            }
+            stopMusicForMask(bit);
+            int launched=lampEffects.start(MIX_KINDS[index],bit,
+                brightness.getProgress(),fxSpeed.getProgress(),
+                red.getProgress(),green.getProgress(),blue.getProgress());
+            active|=launched;
+        }
+        if(active!=0){
+            ensureEffectsForeground();
+            prefs.edit().putInt("dj_mix_l1",chosen[0])
+                .putInt("dj_mix_l2",chosen[1]).apply();
+        }
+        refreshDjMixStatus();
+    }
+    private void refreshDjMixStatus(){
+        if(mixStatus==null||djLamp1Mode==null||djLamp2Mode==null)return;
+        String left=light1.isUserEnabled()&&light1.isReady()?
+            MIX_LABELS[Math.max(0,djLamp1Mode.getSelectedItemPosition())]:
+            "L1: ręcznie WŁĄCZ";
+        String right=light2.isUserEnabled()&&light2.isReady()?
+            MIX_LABELS[Math.max(0,djLamp2Mode.getSelectedItemPosition())]:
+            "L2: ręcznie WŁĄCZ";
+        mixStatus.setText("L1: "+left+"  |  L2: "+right);
+    }
+
     private void stopMusicForMask(int mask){
         lightingSession.music.stop(mask);
         if(!lightingSession.music.isActive()){
