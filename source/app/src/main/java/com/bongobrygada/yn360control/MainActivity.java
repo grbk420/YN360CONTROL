@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
     private CheckBox djAutoApply;
     private TextView djMixStatusL1,djMixStatusL2;
     private boolean mixerCallbacksReady=false,mixerBatchChange=false;
+    private long mixerIgnoreChangesUntil=0L;
     private View musicMoreBody;
     private Button musicMoreBtn,favoriteSaveBtn;
     private LinearLayout favoritesList;
@@ -1171,11 +1172,17 @@ public class MainActivity extends Activity {
         if(chosen==2 && favoritesList!=null)renderFavorites();
     }
 
-    /** Two independent sessions, with one-tap swapping of selected roles. */
+    /** Two separate live channels. Auto LIVE affects only the spinner's lamp. */
     private void setupDjMixer(){
         djLamp1Mode=findViewById(R.id.djLamp1Mode);
         djLamp2Mode=findViewById(R.id.djLamp2Mode);
         mixStatus=findViewById(R.id.djMixStatus);
+        djMixStatusL1=findViewById(R.id.djMixStatusL1);
+        djMixStatusL2=findViewById(R.id.djMixStatusL2);
+        djAutoApply=findViewById(R.id.djAutoApply);
+        djAutoApply.setChecked(prefs.getBoolean("dj_auto_apply",true));
+        djAutoApply.setOnCheckedChangeListener((button,enabled)->
+            prefs.edit().putBoolean("dj_auto_apply",enabled).apply());
         ArrayAdapter<String> adapter1=new ArrayAdapter<>(this,
             android.R.layout.simple_spinner_item,MIX_LABELS);
         adapter1.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -1187,25 +1194,42 @@ public class MainActivity extends Activity {
             prefs.getInt("dj_mix_l1",1))));
         djLamp2Mode.setSelection(Math.max(0,Math.min(MIX_KINDS.length-1,
             prefs.getInt("dj_mix_l2",11))));
+        for(int i=0;i<2;i++){
+            final int bit=1<<i;
+            Spinner spinner=i==0?djLamp1Mode:djLamp2Mode;
+            spinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+                @Override public void onItemSelected(android.widget.AdapterView<?> parent,
+                                                        View view,int position,long id){
+                    prefs.edit().putInt(bit==1?"dj_mix_l1":"dj_mix_l2",position).apply();
+                    if(mixerCallbacksReady && !mixerBatchChange &&
+                       SystemClock.elapsedRealtime()>mixerIgnoreChangesUntil &&
+                       djAutoApply.isChecked())
+                        applyDjMixToMask(bit,false);
+                }
+                @Override public void onNothingSelected(android.widget.AdapterView<?> parent){}
+            });
+        }
+        // Ignore initial Spinner callbacks, which are not user actions.
+        ui.postDelayed(()->mixerCallbacksReady=true,350);
         findViewById(R.id.djMixStartBtn).setOnClickListener(v->applyDjMix());
-        findViewById(R.id.djMixSwapBtn).setOnClickListener(v->{
-            int a=djLamp1Mode.getSelectedItemPosition();
-            int b=djLamp2Mode.getSelectedItemPosition();
-            djLamp1Mode.setSelection(b);djLamp2Mode.setSelection(a);
-            applyDjMix();
-        });
-        findViewById(R.id.djMixColorStrobeBtn).setOnClickListener(v->{
-            djLamp1Mode.setSelection(1);djLamp2Mode.setSelection(11);applyDjMix();
-        });
-        findViewById(R.id.djMixStrobeColorBtn).setOnClickListener(v->{
-            djLamp1Mode.setSelection(11);djLamp2Mode.setSelection(1);applyDjMix();
-        });
-        findViewById(R.id.djMixGrooveSnapBtn).setOnClickListener(v->{
-            djLamp1Mode.setSelection(3);djLamp2Mode.setSelection(11);applyDjMix();
-        });
+        findViewById(R.id.djMixStart1Btn).setOnClickListener(v->applyDjMixToMask(1,true));
+        findViewById(R.id.djMixStart2Btn).setOnClickListener(v->applyDjMixToMask(2,true));
         findViewById(R.id.djMixStop1Btn).setOnClickListener(v->stopDjLamp(1));
         findViewById(R.id.djMixStop2Btn).setOnClickListener(v->stopDjLamp(2));
+        findViewById(R.id.djMixSwapBtn).setOnClickListener(v->quickDjMix(
+            djLamp2Mode.getSelectedItemPosition(),djLamp1Mode.getSelectedItemPosition()));
+        findViewById(R.id.djMixColorStrobeBtn).setOnClickListener(v->quickDjMix(1,11));
+        findViewById(R.id.djMixStrobeColorBtn).setOnClickListener(v->quickDjMix(11,1));
+        findViewById(R.id.djMixGrooveSnapBtn).setOnClickListener(v->quickDjMix(3,11));
         refreshDjMixStatus();
+    }
+    private void quickDjMix(int first,int second){
+        mixerBatchChange=true;
+        mixerIgnoreChangesUntil=SystemClock.elapsedRealtime()+600L;
+        djLamp1Mode.setSelection(first);
+        djLamp2Mode.setSelection(second);
+        mixerBatchChange=false;
+        applyDjMix();
     }
     private void stopDjLamp(int mask){
         lampEffects.stop(mask);
@@ -1215,49 +1239,61 @@ public class MainActivity extends Activity {
             catch(Exception ignored){}
         }
         refreshDjMixStatus();
-        status.setText("Zatrzymano efekt • "+targetLabel(mask)+
-            " (lampa nie jest wyłączana)");
+        if(status!=null)status.setText("Zatrzymano efekt • "+targetLabel(mask)+
+            " (bez gaszenia lampy)");
+    }
+    private int applyDjMixToMask(int bit,boolean restart){
+        int index=(bit==1?djLamp1Mode:djLamp2Mode).getSelectedItemPosition();
+        if(index<0||index>=MIX_KINDS.length)return 0;
+        prefs.edit().putInt(bit==1?"dj_mix_l1":"dj_mix_l2",index).apply();
+        if((enabledMask(bit)&bit)==0){
+            if(mixStatus!=null)mixStatus.setText(
+                "Włącz ręcznie "+targetLabel(bit)+" i połącz ją z Bluetooth");
+            refreshDjMixStatus();
+            return 0;
+        }
+        LampEffects.Kind chosen=MIX_KINDS[index];
+        if(chosen==null){stopDjLamp(bit);return bit;}
+        if(!restart && lampEffects.getActiveKind(bit==1?0:1)==chosen &&
+           lightingSession.music.getMode(bit==1?0:1)==-1){
+            refreshDjMixStatus();return bit;
+        }
+        stopMusicForMask(bit);
+        int launched=lampEffects.start(chosen,bit,
+            brightness.getProgress(),fxSpeed.getProgress(),
+            red.getProgress(),green.getProgress(),blue.getProgress());
+        if(launched!=0){
+            ensureEffectsForeground();
+            rememberFavorite("FX:"+chosen.name(),MIX_LABELS[index]);
+        }
+        refreshDjMixStatus();
+        return launched;
     }
     private void applyDjMix(){
-        final int[] chosen={
-            djLamp1Mode.getSelectedItemPosition(),
-            djLamp2Mode.getSelectedItemPosition()};
-        int enabled=enabledMask(3);
-        if(enabled==0){
-            mixStatus.setText("Włącz ręcznie co najmniej jedną lampę i połącz Bluetooth");
-            return;
-        }
-        int active=0;
-        for(int i=0;i<2;i++){
-            int bit=1<<i,index=chosen[i];
-            if((enabled&bit)==0)continue; // do not turn on an off lamp
-            if(index<0||index>=MIX_KINDS.length)continue;
-            if(MIX_KINDS[index]==null){
-                stopDjLamp(bit);
-                continue;
-            }
-            stopMusicForMask(bit);
-            int launched=lampEffects.start(MIX_KINDS[index],bit,
-                brightness.getProgress(),fxSpeed.getProgress(),
-                red.getProgress(),green.getProgress(),blue.getProgress());
-            active|=launched;
-        }
-        if(active!=0){
-            ensureEffectsForeground();
-            prefs.edit().putInt("dj_mix_l1",chosen[0])
-                .putInt("dj_mix_l2",chosen[1]).apply();
+        int first=applyDjMixToMask(1,true),second=applyDjMixToMask(2,true);
+        if(first!=0 && second!=0){
+            String key="MIX:"+djLamp1Mode.getSelectedItemPosition()+":"+
+                djLamp2Mode.getSelectedItemPosition();
+            rememberFavorite(key,"L1 "+djLamp1Mode.getSelectedItem()+
+                " • L2 "+djLamp2Mode.getSelectedItem());
         }
         refreshDjMixStatus();
     }
+    private String lampLiveStatus(int i){
+        BleLightController lamp=i==0?light1:light2;
+        if(!lamp.isReady())return "Brak połączenia Bluetooth";
+        if(!lamp.isUserEnabled())return "Ręcznie naciśnij WŁĄCZ";
+        int live=lightingSession.music.getMode(i);
+        if(live>=0)return "🎙 MUSIC LIVE • tryb "+(live+1);
+        LampEffects.Kind k=lampEffects.getActiveKind(i);
+        return k==null?"Brak aktywnej animacji":
+            "▶ "+k.name().replace('_',' ');
+    }
     private void refreshDjMixStatus(){
-        if(mixStatus==null||djLamp1Mode==null||djLamp2Mode==null)return;
-        String left=light1.isUserEnabled()&&light1.isReady()?
-            MIX_LABELS[Math.max(0,djLamp1Mode.getSelectedItemPosition())]:
-            "L1: ręcznie WŁĄCZ";
-        String right=light2.isUserEnabled()&&light2.isReady()?
-            MIX_LABELS[Math.max(0,djLamp2Mode.getSelectedItemPosition())]:
-            "L2: ręcznie WŁĄCZ";
-        mixStatus.setText("L1: "+left+"  |  L2: "+right);
+        if(mixStatus==null||djMixStatusL1==null||djMixStatusL2==null)return;
+        String left=lampLiveStatus(0),right=lampLiveStatus(1);
+        djMixStatusL1.setText(left);djMixStatusL2.setText(right);
+        mixStatus.setText("L1: "+left+"   |   L2: "+right);
     }
 
     private void stopMusicForMask(int mask){
