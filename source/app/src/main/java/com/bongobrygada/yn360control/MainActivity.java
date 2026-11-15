@@ -183,6 +183,12 @@ public class MainActivity extends Activity {
         findViewById(R.id.djBuild16Btn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_BUILD_16,"DJ • BUILD 16 TAKTÓW"));
         findViewById(R.id.djPreDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_PRE_DROP,"DJ • PRE-DROP"));
         findViewById(R.id.djDropBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_DROP,"DJ • DROP NOW"));
+        findViewById(R.id.djDropFlashBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_DROP_FLASH,"DJ • DROP × STROBE"));
+        findViewById(R.id.djFillBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_STROBE_FILL,"DJ • 1 BAR FILL → DROP"));
+        findViewById(R.id.djQuickStrobeBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE,"DJ • STROBE"));
+        findViewById(R.id.djQuickTurboBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE_TURBO,"DJ • TURBO"));
+        findViewById(R.id.djQuickSnapBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE_SNAP,"DJ • SNAP"));
+        findViewById(R.id.djQuickRapidBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE_RAPID,"DJ • RAPID"));
         findViewById(R.id.djBreakdownBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_BREAKDOWN,"DJ • BREAKDOWN"));
         findViewById(R.id.djOutroBtn).setOnClickListener(v->startScene(LampEffects.Kind.DJ_OUTRO,"DJ • OUTRO"));
         findViewById(R.id.houseChaseBtn).setOnClickListener(v->startScene(LampEffects.Kind.HOUSE_CHASE,"HOUSE CHASE "+selectedBpm+" BPM"));
