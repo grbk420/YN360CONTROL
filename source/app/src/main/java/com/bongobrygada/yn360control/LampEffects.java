@@ -15,7 +15,7 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, DJ_INTRO, DJ_GROOVE, DJ_TRANSITION, DJ_BUILD_8, DJ_BUILD_16, DJ_PRE_DROP, DJ_DROP, DJ_BREAKDOWN, DJ_OUTRO, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, DJ_INTRO, DJ_GROOVE, DJ_TRANSITION, DJ_BUILD_8, DJ_BUILD_16, DJ_PRE_DROP, DJ_DROP, DJ_BREAKDOWN, DJ_OUTRO, DJ_DROP_FLASH, DJ_STROBE_FILL, IDENTIFY
     }
 
     private static boolean isDj(Kind kind){
@@ -29,6 +29,8 @@ public final class LampEffects {
             case DJ_DROP:
             case DJ_BREAKDOWN:
             case DJ_OUTRO:
+            case DJ_DROP_FLASH:
+            case DJ_STROBE_FILL:
                 return true;
             default:return false;
         }
@@ -44,6 +46,8 @@ public final class LampEffects {
             case DJ_DROP:return "DROP";
             case DJ_BREAKDOWN:return "BREAKDOWN";
             case DJ_OUTRO:return "OUTRO";
+            case DJ_DROP_FLASH:return "DROP × STROBE";
+            case DJ_STROBE_FILL:return "STROBE FILL → DROP";
             default:return "DJ";
         }
     }
@@ -337,6 +341,11 @@ public final class LampEffects {
         private String djStatus(){
             long ms=djElapsedBeats();
             double beat=ms*(double)bpm/60000d;
+            if(kind==Kind.DJ_STROBE_FILL){
+                double remaining=4d-beat;
+                return remaining>0d?"STROBE FILL • "+Math.max(1,(int)Math.ceil(remaining))+
+                    " uderzeń do DROP":"DROP AUTO • "+bpm+" BPM";
+            }
             if(kind==Kind.DJ_BUILD_8||kind==Kind.DJ_BUILD_16){
                 int bars=kind==Kind.DJ_BUILD_8?8:16;
                 double remaining=bars*4d-beat;
@@ -349,96 +358,151 @@ public final class LampEffects {
                 (kind==Kind.DJ_PRE_DROP?" • naciśnij DROP w wybranym momencie":"");
         }
 
-        /** DJ show engine: saturated colour pads + short beat-aligned strobe accents.
-         * 8/16 bars means 32/64 quarter-note beats, then automatically DROP.
-         * Live manual DROP always overrides the countdown via start().
+        /** DJ show engine: high-contrast pulses, abrupt cuts and dark gaps.
+         * Pattern timing follows the user's 40-200 BPM and 4/4 phrase count.
+         * Each lamp is driven separately; RGB 0,0,0 represents an unlit gap.
+         * Bluetooth throughput still limits actual visible strobe frequency.
          */
         private long runDjPerformance(){
-            double beats=Math.max(0, SystemClock.uptimeMillis()-startedAt)*
-                (double)bpm/60000d;
+            double totalBeats=Math.max(0d,(SystemClock.uptimeMillis()-startedAt)*
+                (double)bpm/60000d);
             Kind stage=kind;
-            if(kind==Kind.DJ_BUILD_8 && beats>=32d){
-                stage=Kind.DJ_DROP;beats-=32d;
-            }else if(kind==Kind.DJ_BUILD_16 && beats>=64d){
-                stage=Kind.DJ_DROP;beats-=64d;
+            double phraseBeats=totalBeats;
+            if(kind==Kind.DJ_BUILD_8&&totalBeats>=32d){
+                stage=Kind.DJ_DROP;phraseBeats=totalBeats-32d;
+            }else if(kind==Kind.DJ_BUILD_16&&totalBeats>=64d){
+                stage=Kind.DJ_DROP;phraseBeats=totalBeats-64d;
+            }else if(kind==Kind.DJ_STROBE_FILL&&totalBeats>=4d){
+                stage=Kind.DJ_DROP;phraseBeats=totalBeats-4d;
             }
-            long beat=(long)Math.floor(beats);
-            double phase=beats-beat;
-            double barPosition=(beat%4+phase)/4d;
+            long beat=(long)Math.floor(phraseBeats);
+            double phase=phraseBeats-beat;
+            long bar=beat/4;
+            int beatInBar=(int)(beat%4);
             double seconds=Math.max(0,SystemClock.uptimeMillis()-startedAt)/1000d;
-            int bars=kind==Kind.DJ_BUILD_8?8:kind==Kind.DJ_BUILD_16?16:0;
-            double buildup=bars==0?0d:Math.min(1d,beats/(bars*4d));
+            int targetBars=kind==Kind.DJ_BUILD_8?8:kind==Kind.DJ_BUILD_16?16:0;
+            double buildup=targetBars==0?0:
+                Math.min(1d,totalBeats/(targetBars*4d));
+            boolean first=phase<.23d;
+            boolean second=phase>=.52d&&phase<.71d;
+            boolean third=phase>=.79d&&phase<.91d;
+
             for(int i=0;i<2;i++){
                 int bit=1<<i;
                 if((mask&bit)==0||!lamps[i].isReady()||!lamps[i].isUserEnabled())continue;
-                double duo=(i==0?0d:1d);
-                double hue=215d;
-                double sat=.96d,value=.46d;
-                boolean white=false;
-                boolean blackout=false;
+                boolean duo=(mask&3)==3;
+                boolean lightOn=false,whiteHit=false;
+                float hue=192f;
+                double level=0d;
                 switch(stage){
                     case DJ_INTRO:
-                        hue=208+66*wave(seconds*.20+duo*1.4);
-                        value=.19+.22*wave(seconds*.45+duo*.8);
+                        // Low-key opening: one bright cyan/violet hit every two beats.
+                        hue=i==0?190f:277f;
+                        lightOn=(beat%2==i%2)&&phase<.31;
+                        level=lightOn?.53:0d;
                         break;
                     case DJ_GROOVE:
-                        hue=(beat/4%4==0?185:beat/4%4==1?310:beat/4%4==2?263:38)+
-                            (i==1?42:0);
-                        value=(phase<.21? .87:.39)+.08*wave(seconds*.85);
+                        // Quarter-note kick + offbeat snare, alternating between two lamps.
+                        hue=beatInBar%2==0?184f:304f;
+                        if(duo)hue=i==0?184f:314f;
+                        lightOn=i==0?first:second;
+                        if(!duo)lightOn=first||second;
+                        level=lightOn?.96:0d;
                         break;
                     case DJ_TRANSITION:
-                        hue=(210+seconds*36+duo*115)%360;
-                        value=.28+.54*wave(seconds*1.8+duo*1.5);
-                        white=beat%4==0&&phase<.14;
+                        hue=(float)((bar*46+(i==0?170:308))%360);
+                        lightOn=first||second;
+                        if(duo)lightOn=(i==beatInBar%2?first:second);
+                        whiteHit=first&&beatInBar==0;
+                        level=lightOn?.98:0d;
                         break;
                     case DJ_BUILD_8:
                     case DJ_BUILD_16:
-                        hue=(252+55*wave(seconds*.8)+duo*75+seconds*13)%360;
-                        value=.20+.57*buildup+.13*wave(seconds*2.5);
-                        int accentEvery=buildup<.27?4:buildup<.58?2:1;
-                        white=beat%accentEvery==0&&phase<.17;
-                        if(buildup>.74 && phase>=.5 && phase<.67)white=true;
-                        if(buildup>.92 && phase>.68 && phase<.88)blackout=true;
+                        // Progressively denser hits. Last bar: flash then full blackout
+                        // for the final fraction of beat four, just before DROP.
+                        hue=(float)((285+bar*13+(i==0?0:145))%360);
+                        lightOn=first&&(
+                            buildup>.40d||beatInBar==0||beatInBar==2);
+                        if(buildup>.56d&&second)lightOn=true;
+                        if(buildup>.82d&&third&&beatInBar%2==1)lightOn=true;
+                        whiteHit=lightOn&&buildup>.66d&&(
+                            (beatInBar==0&&first)||(buildup>.90d&&second));
+                        if(buildup>.93d&&beatInBar==3&&phase>.58d){
+                            lightOn=false;whiteHit=false;
+                        }
+                        level=lightOn?(.56d+.44d*buildup):0d;
                         break;
                     case DJ_PRE_DROP:
-                        hue=(285+duo*112+seconds*24)%360;
-                        value=.35+.31*wave(seconds*2.3);
-                        white=beat%2==0 && (phase<.18||(phase>.49&&phase<.64));
-                        blackout=beat%4==3 && phase>.62;
+                        // Twin flash, gated silence and a dramatic black final beat.
+                        hue=i==0?317f:184f;
+                        lightOn=first||second;
+                        if(duo)lightOn=i==0?first:second;
+                        whiteHit=lightOn&&beatInBar%2==0;
+                        if(beatInBar==3&&phase>.48d){
+                            lightOn=false;whiteHit=false;
+                        }
+                        level=lightOn?1d:0d;
                         break;
                     case DJ_DROP:
-                        hue=(i==0?313:190)+(beat/2%4)*36;
-                        value=(phase<.25?.95:.76);
-                        white=phase<.16 && ((beat%4==0)||(i==0?beat%2==0:beat%2==1));
-                        if((mask&3)==3 && i==1 && beat%4==0)white=true;
-                        blackout=phase>.83 && beat%4==3;
+                        hue=(float)((bar%4*63+(i==0?304:180))%360);
+                        lightOn=first||second;
+                        if(duo)lightOn=i==0?first:second;
+                        whiteHit=(beatInBar==0&&first)
+                            ||(duo&&i==1&&beatInBar==2&&second);
+                        level=lightOn?1d:0d;
+                        break;
+                    case DJ_DROP_FLASH:
+                        // Active dual-phase strobe blended with opposite neon colours.
+                        // Unlike plain DROP, both halves of each beat are emphasized.
+                        hue=i==0?316f:182f;
+                        lightOn=first||second||(beatInBar%2==0&&third);
+                        if(duo)lightOn=i==0?(first||third):second;
+                        whiteHit=lightOn&&(
+                            (i==0&&first)||(i==1&&second)||
+                            (beatInBar==0&&third));
+                        level=lightOn?1d:0d;
+                        break;
+                    case DJ_STROBE_FILL:
+                        // One 4-beat flashing fill; resumes DROP without further tapping.
+                        hue=i==0?45f:281f;
+                        double sub=(phase*4d)%1d;
+                        int slice=(int)(phase*4d);
+                        lightOn=sub<.42d && (!duo||slice%2==i);
+                        whiteHit=lightOn&&slice%2==0;
+                        level=lightOn?1d:0d;
                         break;
                     case DJ_BREAKDOWN:
-                        hue=190+75*wave(seconds*.25+duo*2.1);
-                        value=.10+.21*wave(seconds*.5+duo);
+                        hue=i==0?204f:275f;
+                        lightOn=beatInBar==0&&phase<.38d;
+                        if(duo)lightOn=beatInBar==i*2&&phase<.40d;
+                        level=lightOn?.42:0d;
                         break;
                     case DJ_OUTRO:
-                        hue=12+32*wave(seconds*.17+duo);
-                        double tail=Math.max(.03d,1d-Math.max(0d,beats)/64d);
-                        value=.03+.40*tail;
+                        hue=i==0?21f:300f;
+                        double fade=Math.max(0d,1d-totalBeats/64d);
+                        lightOn=beatInBar==0&&phase<.24d;
+                        if(totalBeats>48d)lightOn=beat%8==0&&phase<.22d;
+                        level=lightOn?fade*.58d:0d;
                         break;
-                    default:return 160;
+                    default:return 140;
                 }
-                if(blackout)value=.015d;
-                if(white){sat=.12d;value=.99d;}
-                int color=Color.HSVToColor(new float[]{
-                    (float)((hue+360d)%360d),(float)sat,(float)Math.min(1d,Math.max(.012d,value))});
-                int rr=Color.red(color),gg=Color.green(color),bb=Color.blue(color);
-                // Quantize subtle changes and avoid filling Bluetooth queues with
-                // repeated near-identical frames.
+
+                int rr=0,gg=0,bb=0;
+                if(lightOn){
+                    int c=Color.HSVToColor(new float[]{
+                        hue,whiteHit?.04f:.99f,(float)Math.min(1d,level)});
+                    rr=Color.red(c);gg=Color.green(c);bb=Color.blue(c);
+                }
+                // Genuinely black frames between kicks, not dim continuous pads.
+                // Quantization reduces redundant writes but always distinguishes OFF.
                 int key=(rr/8<<16)|(gg/8<<8)|(bb/8);
                 if(key!=lastDjFrame[i]){
                     lastDjFrame[i]=key;
                     rgb(bit,rr,gg,bb);
                 }
             }
-            return stage==Kind.DJ_BREAKDOWN||stage==Kind.DJ_OUTRO||
-                stage==Kind.DJ_INTRO?140:65;
+            return stage==Kind.DJ_INTRO||stage==Kind.DJ_BREAKDOWN||
+                stage==Kind.DJ_OUTRO?80:45;
         }
 
         private long runMusicBeat(){
