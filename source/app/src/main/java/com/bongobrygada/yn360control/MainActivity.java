@@ -66,6 +66,11 @@ public class MainActivity extends Activity {
         "⚡ Turbo","⚡ Snap","⚡ Rapid","🌌 Aurora Flow"
     };
     private TextView musicStatus;
+    private static final String[] LIVE_NAMES={
+        "Bass Reactor","Club Duo","Sound Spectrum","Ambient Audio","Drop Hunter",
+        "Kick Swap","Hi-Hat Spark","Bass Ripple","Neon Steps","VU Meter",
+        "Color Jump","Sync Flash","Energy Wave"
+    };
     private static final int MIC_REQUEST=306;
     private int pendingMicMode=-1,pendingMicMask=0;
     private LightingSession lightingSession;
@@ -1012,6 +1017,7 @@ public class MainActivity extends Activity {
             status.setText(name+" • "+targetLabel(actual)+" • działa w tle");
             if(djStatus!=null)
                 djStatus.setText(lampEffects.getDjStatus(selectedMask()));
+            rememberFavorite("FX:"+kind.name(),name);
         }
     }
     /** Tempo works even when both lamps are off; no Bluetooth write until an effect is started. */
@@ -1296,6 +1302,145 @@ public class MainActivity extends Activity {
         mixStatus.setText("L1: "+left+"   |   L2: "+right);
     }
 
+    /** Persist only safe enum keys and simple preset parameters. No audio, BLE
+     * addresses, lamp power states or microphone permissions are saved in favorites.
+     */
+    private void setupFavorites(){
+        favoriteSaveBtn=findViewById(R.id.favoriteSaveBtn);
+        favoritesList=findViewById(R.id.favoritesList);
+        String stored=prefs.getString("favorite_keys_v114","");
+        if(stored!=null&&!stored.isEmpty()){
+            for(String key:stored.split(","))if(isValidFavorite(key))favorites.add(key);
+        }
+        favoriteSaveBtn.setOnClickListener(v->{
+            if(lastFavoriteKey==null){
+                Toast.makeText(this,"Najpierw uruchom efekt, który chcesz zapisać",
+                    Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if(favorites.contains(lastFavoriteKey))favorites.remove(lastFavoriteKey);
+            else favorites.add(lastFavoriteKey);
+            persistFavorites();
+            renderFavorites();
+            updateFavoriteButton();
+        });
+        updateFavoriteButton();
+        renderFavorites();
+    }
+    private boolean isValidFavorite(String key){
+        if(key==null)return false;
+        if(key.startsWith("FX:")){
+            try{LampEffects.Kind.valueOf(key.substring(3));return true;}
+            catch(IllegalArgumentException e){return false;}
+        }
+        if(key.startsWith("LIVE:")){
+            try{
+                int i=Integer.parseInt(key.substring(5));
+                return i>=0&&i<LIVE_NAMES.length;
+            }catch(NumberFormatException e){return false;}
+        }
+        if(key.startsWith("MIX:")){
+            String[] parts=key.split(":");
+            try{
+                return parts.length==3 &&
+                    Integer.parseInt(parts[1])>=0 &&
+                    Integer.parseInt(parts[1])<MIX_KINDS.length &&
+                    Integer.parseInt(parts[2])>=0 &&
+                    Integer.parseInt(parts[2])<MIX_KINDS.length;
+            }catch(NumberFormatException e){return false;}
+        }
+        return false;
+    }
+    private String favoriteTitle(String key){
+        if(key.startsWith("FX:"))return key.substring(3).replace('_',' ');
+        if(key.startsWith("LIVE:")){
+            int index=Integer.parseInt(key.substring(5));
+            return "🎙 "+LIVE_NAMES[index];
+        }
+        if(key.startsWith("MIX:")){
+            String[] p=key.split(":");
+            return "L1 "+MIX_LABELS[Integer.parseInt(p[1])]+
+                " / L2 "+MIX_LABELS[Integer.parseInt(p[2])];
+        }
+        return "Nieznany efekt";
+    }
+    private void persistFavorites(){
+        prefs.edit().putString("favorite_keys_v114",
+            android.text.TextUtils.join(",",favorites)).apply();
+    }
+    private void rememberFavorite(String key,String label){
+        if(!isValidFavorite(key))return;
+        lastFavoriteKey=key;
+        lastFavoriteName=label;
+        updateFavoriteButton();
+    }
+    private void updateFavoriteButton(){
+        if(favoriteSaveBtn==null)return;
+        boolean has=lastFavoriteKey!=null;
+        favoriteSaveBtn.setEnabled(has);
+        if(!has){
+            favoriteSaveBtn.setText("☆ Uruchom efekt, aby dodać go do Ulubionych");
+            return;
+        }
+        String title=lastFavoriteName==null?favoriteTitle(lastFavoriteKey):lastFavoriteName;
+        if(title.length()>38)title=title.substring(0,37)+"…";
+        favoriteSaveBtn.setText(
+            (favorites.contains(lastFavoriteKey)?"★ Usuń z Ulubionych: ":"☆ Dodaj do Ulubionych: ")+title);
+    }
+    private void playFavorite(String key){
+        if(!isValidFavorite(key))return;
+        if(key.startsWith("FX:")){
+            LampEffects.Kind kind=LampEffects.Kind.valueOf(key.substring(3));
+            startScene(kind,favoriteTitle(key));
+        }else if(key.startsWith("LIVE:")){
+            requestMusicLive(Integer.parseInt(key.substring(5)));
+        }else if(key.startsWith("MIX:")){
+            String[] p=key.split(":");
+            quickDjMix(Integer.parseInt(p[1]),Integer.parseInt(p[2]));
+        }
+    }
+    private void renderFavorites(){
+        if(favoritesList==null)return;
+        favoritesList.removeAllViews();
+        int dp=(int)(getResources().getDisplayMetrics().density*46f);
+        if(favorites.isEmpty()){
+            TextView empty=new TextView(this);
+            empty.setText("Brak zapisanych efektów. Uruchom scenę i naciśnij ☆.");
+            empty.setTextSize(13f);
+            empty.setTextColor(android.graphics.Color.parseColor("#B8C6DD"));
+            empty.setPadding(8,12,8,12);
+            favoritesList.addView(empty);
+            return;
+        }
+        for(String key:new ArrayList<>(favorites)){
+            LinearLayout row=new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            Button play=new Button(this);
+            play.setAllCaps(false);
+            play.setText("▶ "+favoriteTitle(key));
+            play.setTextSize(12f);
+            play.setSingleLine(false);
+            play.setTextColor(android.graphics.Color.WHITE);
+            play.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                android.graphics.Color.parseColor("#39536C")));
+            row.addView(play,new LinearLayout.LayoutParams(0,dp,1f));
+            Button remove=new Button(this);
+            remove.setText("✕");
+            remove.setAllCaps(false);
+            remove.setTextColor(android.graphics.Color.WHITE);
+            remove.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                android.graphics.Color.parseColor("#5E394E")));
+            row.addView(remove,new LinearLayout.LayoutParams(
+                (int)(55*getResources().getDisplayMetrics().density),dp));
+            play.setOnClickListener(v->playFavorite(key));
+            remove.setOnClickListener(v->{
+                favorites.remove(key);
+                persistFavorites();renderFavorites();updateFavoriteButton();
+            });
+            favoritesList.addView(row);
+        }
+    }
+
     private void stopMusicForMask(int mask){
         lightingSession.music.stop(mask);
         if(!lightingSession.music.isActive()){
@@ -1334,6 +1479,8 @@ public class MainActivity extends Activity {
             musicStatus.setText("MUSIC LIVE • "+targetLabel(mask)+
                 " • mikrofon aktywny po uruchomieniu usługi");
             status.setText("MUSIC SYNC • reaguje na muzykę z głośników");
+            if(mode>=0&&mode<LIVE_NAMES.length)
+                rememberFavorite("LIVE:"+mode,"🎙 "+LIVE_NAMES[mode]);
         }catch(RuntimeException e){
             lightingSession.music.stop(mask);
             musicStatus.setText("Nie można uruchomić mikrofonu: "+
