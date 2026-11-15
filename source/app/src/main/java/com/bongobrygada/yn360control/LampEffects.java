@@ -15,7 +15,7 @@ import java.util.Random;
 public final class LampEffects {
     public enum Kind {
         POLICE, DISCO, STROBE, STROBE_TURBO, FLASH, FADE, LIGHTNING, CANDLE,
-        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, DJ_INTRO, DJ_GROOVE, DJ_TRANSITION, DJ_BUILD_8, DJ_BUILD_16, DJ_PRE_DROP, DJ_DROP, DJ_BREAKDOWN, DJ_OUTRO, DJ_DROP_FLASH, DJ_STROBE_FILL, IDENTIFY
+        OCEAN, SUNSET, PULSE, TV, NEON, AURORA, BREATHING, SLEEP, DREAM, MOONLIGHT, LAVA, FOREST, DUO_WAVE, STROBE_SNAP, CYBERPUNK, SYNTHWAVE, RAINBOW_FLOW, PLASMA, MATRIX_CODE, NEON_TUNNEL, ARCADE, BOSS_AURA, GALAXY, AQUA_RIPPLE, ICE_CAVE, SPACE_DRIFT, LOFI_NIGHT, COZY_GLOW, DEEP_FOCUS, STARFIELD, DUO_CHASE, CHROMA_SPLIT, NEON_RAVE, LASER_SWAP, TOXIC_GLOW, FIRE_ICE, PIXEL_PARTY, ELECTRIC_STORM, STROBE_RAPID, BEAT_120, BEAT_125, BEAT_130, HOUSE_CHASE, TECHNO_KICK, DISCO_RAINBOW, EDM_DROP, BASS_BOUNCE, KICK_SNARE, DUO_PINGPONG, TRAFFIC_NEON, COMET_TRAIL, HEARTBEAT_DUO, SUNRISE_20, DJ_INTRO, DJ_GROOVE, DJ_TRANSITION, DJ_BUILD_8, DJ_BUILD_16, DJ_PRE_DROP, DJ_DROP, DJ_BREAKDOWN, DJ_OUTRO, DJ_DROP_FLASH, DJ_STROBE_FILL, DJ_LASER_CLASH, DJ_OFFBEAT, IDENTIFY
     }
 
     private static boolean isDj(Kind kind){
@@ -31,6 +31,8 @@ public final class LampEffects {
             case DJ_OUTRO:
             case DJ_DROP_FLASH:
             case DJ_STROBE_FILL:
+            case DJ_LASER_CLASH:
+            case DJ_OFFBEAT:
                 return true;
             default:return false;
         }
@@ -48,6 +50,8 @@ public final class LampEffects {
             case DJ_OUTRO:return "OUTRO";
             case DJ_DROP_FLASH:return "DROP × STROBE";
             case DJ_STROBE_FILL:return "STROBE FILL → DROP";
+            case DJ_LASER_CLASH:return "LASER CLASH";
+            case DJ_OFFBEAT:return "OFFBEAT CLUB";
             default:return "DJ";
         }
     }
@@ -452,26 +456,46 @@ public final class LampEffects {
                         level=lightOn?1d:0d;
                         break;
                     case DJ_DROP_FLASH:
-                        // Active dual-phase strobe blended with opposite neon colours.
-                        // Unlike plain DROP, both halves of each beat are emphasized.
-                        hue=i==0?316f:182f;
-                        lightOn=first||second||(beatInBar%2==0&&third);
-                        if(duo)lightOn=i==0?(first||third):second;
-                        whiteHit=lightOn&&(
-                            (i==0&&first)||(i==1&&second)||
-                            (beatInBar==0&&third));
+                        // Explicit two-role choreography. L1 runs saturated quarter-note
+                        // colour hits, L2 a white pulse with genuine black gaps.
+                        // For a single selected lamp, alternate colour and white hits.
+                        if(duo){
+                            if(i==0){
+                                hue=(float)(beat%4==0?318:beat%4==1?180:
+                                    beat%4==2?31:260);
+                                lightOn=phase<.46d;
+                                whiteHit=false;
+                            }else{
+                                lightOn=phase<.35d;
+                                whiteHit=true;
+                            }
+                        }else{
+                            hue=(float)(beat%2==0?315:185);
+                            lightOn=phase<.36d;
+                            whiteHit=beat%2==0;
+                        }
                         level=lightOn?1d:0d;
                         break;
                     case DJ_STROBE_FILL:
-                        // One 4-beat flashing fill; resumes DROP without further tapping.
-                        hue=i==0?45f:281f;
-                        // Eighth-note accents (rather than 16ths) leave enough
-                        // radio time for a visible ON and OFF command at club BPM.
-                        double sub=(phase*2d)%1d;
-                        int slice=(int)(phase*2d);
-                        lightOn=sub<.38d && (!duo||slice%2==i);
-                        whiteHit=lightOn&&slice%2==0;
+                        // A reliable one-bar, four-kick build: ~150 ms of light
+                        // per beat instead of short 16ths swallowed by the BLE queue.
+                        hue=i==0?42f:274f;
+                        lightOn=phase<.34d && (!duo || beatInBar%2==i);
+                        whiteHit=lightOn && (beatInBar>=2 || i==1);
                         level=lightOn?1d:0d;
+                        break;
+                    case DJ_LASER_CLASH:
+                        // Two lamps exchange neon strikes, with alternating half-beat.
+                        hue=(float)(i==0?177:309);
+                        lightOn=duo?(i==0?first:second):(first||second);
+                        whiteHit=lightOn&&beatInBar==0&&i==0;
+                        level=lightOn?1d:0d;
+                        break;
+                    case DJ_OFFBEAT:
+                        // Club offbeat: one lamp drives the kick, other drives the snare.
+                        hue=i==0?18f:192f;
+                        lightOn=duo?(i==0?first:second):(first||second);
+                        level=lightOn?.92d:0d;
                         break;
                     case DJ_BREAKDOWN:
                         hue=i==0?204f:275f;
@@ -504,7 +528,7 @@ public final class LampEffects {
                 }
             }
             return stage==Kind.DJ_INTRO||stage==Kind.DJ_BREAKDOWN||
-                stage==Kind.DJ_OUTRO?80:45;
+                stage==Kind.DJ_OUTRO?90:55;
         }
 
         private long runMusicBeat(){
