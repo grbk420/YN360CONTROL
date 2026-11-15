@@ -49,7 +49,8 @@ public class MainActivity extends Activity {
     };
     private final ArrayDeque<Long> recentTaps=new ArrayDeque<>();
     private int selectedBpm=125;
-    private static final int TAP_TARGET=12;
+    private static final int TAP_START=4;
+    private static final int TAP_HISTORY=12;
     private static final LampEffects.Kind[] MIX_KINDS={
         null,LampEffects.Kind.RAINBOW_FLOW,LampEffects.Kind.NEON_RAVE,
         LampEffects.Kind.DJ_GROOVE,LampEffects.Kind.TECHNO_KICK,
@@ -232,6 +233,11 @@ public class MainActivity extends Activity {
         findViewById(R.id.bassBounceBtn).setOnClickListener(v->startScene(LampEffects.Kind.BASS_BOUNCE,"BASS BOUNCE "+selectedBpm+" BPM"));
         findViewById(R.id.kickSnareBtn).setOnClickListener(v->startScene(LampEffects.Kind.KICK_SNARE,"KICK & SNARE "+selectedBpm+" BPM"));
         findViewById(R.id.duoPingpongBtn).setOnClickListener(v->startScene(LampEffects.Kind.DUO_PINGPONG,"DUO PING PONG "+selectedBpm+" BPM"));
+        findViewById(R.id.hiphopBoomBapBtn).setOnClickListener(v->startScene(LampEffects.Kind.HIPHOP_BOOM_BAP,"BOOM BAP "+selectedBpm+" BPM"));
+        findViewById(R.id.hiphopTrapBtn).setOnClickListener(v->startScene(LampEffects.Kind.HIPHOP_TRAP_HATS,"TRAP 808 + HI-HATS "+selectedBpm+" BPM"));
+        findViewById(R.id.hiphopBounceBtn).setOnClickListener(v->startScene(LampEffects.Kind.HIPHOP_BOUNCE,"HIP-HOP BOUNCE "+selectedBpm+" BPM"));
+        findViewById(R.id.hiphopChillBtn).setOnClickListener(v->startScene(LampEffects.Kind.HIPHOP_CHILL,"CHILL HOP "+selectedBpm+" BPM"));
+        findViewById(R.id.hiphopBreakBtn).setOnClickListener(v->startScene(LampEffects.Kind.HIPHOP_BREAK,"BREAKBEAT HIP-HOP "+selectedBpm+" BPM"));
         findViewById(R.id.strobeRapidBtn).setOnClickListener(v->startScene(LampEffects.Kind.STROBE_RAPID,"STROBE RAPID"));
         findViewById(R.id.syncBeatBtn).setOnClickListener(v->{
             int selected=selectedMask();
@@ -1052,7 +1058,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.tapTempoBtn).setOnClickListener(v->tapTempo());
         findViewById(R.id.tapResetBtn).setOnClickListener(v->{
             recentTaps.clear();
-            tapBpmResult.setText("Pomiar wyczyszczony • wystukaj 12 razy");
+            tapBpmResult.setText("Gotowe • 4 stuknięcia do wstępnego BPM, następne synchronizują");
         });
     }
 
@@ -1088,9 +1094,9 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Exactly 12 finger taps (11 intervals) before first BPM determination.
-     * Rolling 12-tap window keeps measuring afterward. Robust median-based
-     * outlier rejection protects against an accidental uneven finger press.
+    /** Early lock after four taps, then continuous BPM refinement on further taps.
+     * Uses a rolling 12-tap window with median-based outlier rejection.
+     * Every valid additional tap also rephases active music/DJ effects on that beat.
      */
     private void tapTempo(){
         long now=SystemClock.elapsedRealtime();
@@ -1100,48 +1106,59 @@ public class MainActivity extends Activity {
             else if(gap<225L)return;
         }
         recentTaps.addLast(now);
-        while(recentTaps.size()>TAP_TARGET)recentTaps.removeFirst();
-        if(recentTaps.size()<TAP_TARGET){
-            tapBpmResult.setText("TAP BPM • "+recentTaps.size()+"/"+TAP_TARGET+
-                " uderzeń • stukaj równo do basu");
+        while(recentTaps.size()>TAP_HISTORY)recentTaps.removeFirst();
+        int count=recentTaps.size();
+        if(count<TAP_START){
+            tapBpmResult.setText("TAP • "+count+"/"+TAP_START+
+                " uderzenia do odczytu • stukaj w takt");
             return;
         }
-        long[] gaps=new long[TAP_TARGET-1];
-        long prev=-1L;int n=0;
-        for(long time:recentTaps){
-            if(prev>=0)gaps[n++]=time-prev;
-            prev=time;
+        long[] gaps=new long[count-1];
+        long prev=-1;
+        int n=0;
+        for(long stamp:recentTaps){
+            if(prev>=0)gaps[n++]=stamp-prev;
+            prev=stamp;
         }
         long[] sorted=gaps.clone();
         java.util.Arrays.sort(sorted);
-        double median=sorted[sorted.length/2];
-        double sum=0d,squareSum=0d;int accepted=0;
+        double median=n%2==0?(sorted[n/2-1]+sorted[n/2])/2d:sorted[n/2];
+        double tolerance=Math.max(65d,median*.20d);
+        double sum=0d,sumSquare=0d;
+        int accepted=0;
         for(long gap:gaps){
-            if(Math.abs(gap-median)>Math.max(65d,median*.19d))continue;
-            sum+=gap;squareSum+=gap*gap;accepted++;
+            if(Math.abs(gap-median)>tolerance)continue;
+            sum+=gap;
+            sumSquare+=((double)gap)*gap;
+            accepted++;
         }
-        if(accepted<8){
-            tapBpmResult.setText("TAP • 12/12 • rytm nieregularny, stukaj dalej");
+        int needed=Math.max(2,n>=7?n-2:n-1);
+        if(accepted<needed){
+            tapBpmResult.setText("TAP • nierówne odstępy • stukaj dalej w rytm");
             return;
         }
-        double mean=sum/accepted;
-        double variance=Math.max(0d,squareSum/accepted-mean*mean);
-        double jitter=Math.sqrt(variance)/mean;
-        if(jitter>.16d){
-            tapBpmResult.setText("TAP • 12/12 • zbyt duże różnice, spróbuj jeszcze");
+        double avg=sum/accepted;
+        double jitter=Math.sqrt(Math.max(0d,sumSquare/accepted-avg*avg))/avg;
+        if(jitter>(n<=4?.18d:.15d)){
+            tapBpmResult.setText("TAP • duże różnice między uderzeniami • popraw rytm");
             return;
         }
-        int measured=(int)Math.round(60000d/mean);
+        int measured=(int)Math.round(60000d/avg);
         if(measured<40||measured>200){
-            tapBpmResult.setText("Tempo "+measured+" BPM poza zakresem 40–200");
+            tapBpmResult.setText("Wystukano około "+measured+
+                " BPM • poza skalą 40–200");
             return;
         }
-        setSelectedBpm(measured);
+        // Keep the detected BPM stable when the finger adds a few milliseconds
+        // of latency; allow intentional large tempo changes without locking it.
+        int target=measured;
+        if(count>=6 && Math.abs(measured-selectedBpm)<=4)
+            target=(int)Math.round(selectedBpm*.60d+measured*.40d);
+        setSelectedBpm(target);
         boolean aligned=lampEffects.syncMusic(3);
-        int consistency=Math.max(0,100-(int)(jitter*300d));
-        tapBpmResult.setText("TAP BPM: "+measured+" • "+accepted+
-            "/11 zgodnych odstępów • stabilność "+consistency+"%"+
-            (aligned?" • SYNC obu lamp":" • tempo gotowe"));
+        String certainty=count<6?"wstępne":count<9?"doprecyzowane":"stabilne";
+        tapBpmResult.setText("TAP: "+target+" BPM • "+certainty+
+            " • "+count+" stuknięć • "+(aligned?"SYNC aktywnych scen":"gotowe do gry"));
     }
 
     /** Eight compact tabs; BPM controls stay above them at all times. */
