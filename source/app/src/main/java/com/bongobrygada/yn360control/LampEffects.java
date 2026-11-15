@@ -93,6 +93,11 @@ public final class LampEffects {
         return false;
     }
 
+    /** Actual per-lamp active mode for the mixer UI; null when stopped. */
+    public Kind getActiveKind(int index){
+        return index>=0 && index<2 && owner[index]!=null?owner[index].kind:null;
+    }
+
     /** Clears only selected devices; any other light continues its current scene. */
     public void stop(int mask) {
         HashSet<Session> touched = new HashSet<>();
