@@ -354,6 +354,7 @@ public class MainActivity extends Activity {
         setupBpmControls();
         setupDjMixer();
         setupFavorites();
+        setupStudioPresets();
         new Handler(Looper.getMainLooper()).postDelayed(this::autoReconnectSaved, 900);
     }
 
@@ -1351,6 +1352,10 @@ public class MainActivity extends Activity {
     }
     private boolean isValidFavorite(String key){
         if(key==null)return false;
+        if(key.startsWith("ROOM:")){
+            try{int n=Integer.parseInt(key.substring(5));return n>=0&&n<ROOM_RGB.length;}
+            catch(NumberFormatException e){return false;}
+        }
         if(key.startsWith("FX:")){
             try{LampEffects.Kind.valueOf(key.substring(3));return true;}
             catch(IllegalArgumentException e){return false;}
@@ -1374,6 +1379,7 @@ public class MainActivity extends Activity {
         return false;
     }
     private String favoriteTitle(String key){
+        if(key.startsWith("ROOM:"))return "☾ "+ROOM_NAMES[Integer.parseInt(key.substring(5))];
         if(key.startsWith("FX:"))return key.substring(3).replace('_',' ');
         if(key.startsWith("LIVE:")){
             int index=Integer.parseInt(key.substring(5));
@@ -1411,7 +1417,9 @@ public class MainActivity extends Activity {
     }
     private void playFavorite(String key){
         if(!isValidFavorite(key))return;
-        if(key.startsWith("FX:")){
+        if(key.startsWith("ROOM:")){
+            applyRoomPreset(Integer.parseInt(key.substring(5)));
+        }else if(key.startsWith("FX:")){
             LampEffects.Kind kind=LampEffects.Kind.valueOf(key.substring(3));
             startScene(kind,favoriteTitle(key));
         }else if(key.startsWith("LIVE:")){
@@ -1508,6 +1516,122 @@ public class MainActivity extends Activity {
             musicStatus.setText("Nie można uruchomić mikrofonu: "+
                 e.getClass().getSimpleName());
         }
+    }
+
+
+    // Dark Studio: curated presets are kept separate from the long list of manual effects.
+    private void setupStudioPresets(){
+        StudioPresetPanel.insert(this,R.id.quickPresetHost,
+            "✦ SZYBKIE SCENY • POKÓJ",
+            "Spokojne, stałe światło RGB • działa na wybranej lampie lub na obu",
+            new StudioPresetPanel.Entry("☾ WIECZÓR","ciepły bursztyn",0xFFFFAA52,
+                ()->applyRoomPreset(0)),
+            new StudioPresetPanel.Entry("▣ KINO","przygaszony fiolet",0xFFA87CFA,
+                ()->applyRoomPreset(1)),
+            new StudioPresetPanel.Entry("✧ RELAKS","delikatny turkus",0xFF50D6CC,
+                ()->applyRoomPreset(2)),
+            new StudioPresetPanel.Entry("◕ NOC","łagodna czerwień",0xFFF07880,
+                ()->applyRoomPreset(3))
+        );
+        StudioPresetPanel.insert(this,R.id.catAmbientBody,
+            "☾ AMBIENT • GOTOWE NASTROJE",
+            "Łagodne sceny bez stroboskopu • wybierz lampę u góry",
+            new StudioPresetPanel.Entry("🔥 KOMINEK","ciepły płomień",0xFFFF9F59,
+                ()->launchPreset(LampEffects.Kind.CANDLE,"Kominek",selectedMask(),95,18)),
+            new StudioPresetPanel.Entry("🌇 ZACHÓD","złota poświata",0xFFFFBE7B,
+                ()->launchPreset(LampEffects.Kind.SUNSET,"Zachód",selectedMask(),110,14)),
+            new StudioPresetPanel.Entry("♫ LO-FI","powolna atmosfera",0xFFA994F9,
+                ()->launchPreset(LampEffects.Kind.LOFI_NIGHT,"Lo-Fi",selectedMask(),105,14)),
+            new StudioPresetPanel.Entry("☁ COZY","miękkie przejścia",0xFF69BCCF,
+                ()->launchPreset(LampEffects.Kind.COZY_GLOW,"Cozy Glow",selectedMask(),100,12))
+        );
+        StudioPresetPanel.insert(this,R.id.catDualBody,
+            "✦ DUO • PRESETY NA DWIE LAMPY",
+            "Presety używają Lampy 1 i 2 niezależnie od aktualnie wybranego celu",
+            new StudioPresetPanel.Entry("≈ DUO FLOW","spokojne fale",0xFF6FC9E8,
+                ()->launchPreset(LampEffects.Kind.DUO_WAVE,"DUO Flow",3,145,14)),
+            new StudioPresetPanel.Entry("◐ COLOR SPLIT","dwa osobne kolory",0xFFD69BFB,
+                ()->launchPreset(LampEffects.Kind.CHROMA_SPLIT,"Color Split",3,165,28)),
+            new StudioPresetPanel.Entry("→ DUO CHASE","światło w pogoni",0xFFFF6BBA,
+                ()->launchPreset(LampEffects.Kind.DUO_CHASE,"DUO Chase",3,190,62)),
+            new StudioPresetPanel.Entry("↔ PING PONG","naprzemienny rytm",0xFF71E3D2,
+                ()->launchPreset(LampEffects.Kind.DUO_PINGPONG,"Ping Pong",3,185,62)),
+            new StudioPresetPanel.Entry("✴ NEON RAVE","klubowy duet",0xFFAE92FF,
+                ()->launchPreset(LampEffects.Kind.NEON_RAVE,"Neon Rave Duo",3,180,58)),
+            new StudioPresetPanel.Entry("♥ HEARTBEAT","puls dwóch lamp",0xFFFF738A,
+                ()->launchPreset(LampEffects.Kind.HEARTBEAT_DUO,"Heartbeat Duo",3,115,30))
+        );
+        StudioPresetPanel.insert(this,R.id.catFlashBody,
+            "⚡ FLASH • SZYBKIE PRESETY",
+            "Uwaga: światło migające • unikaj przy nadwrażliwości na błyski",
+            new StudioPresetPanel.Entry("✧ SOFT FLASH","łagodny błysk",0xFFFFD49D,
+                ()->launchPreset(LampEffects.Kind.FLASH,"Soft Flash",selectedMask(),95,8)),
+            new StudioPresetPanel.Entry("✦ TRIPLE FLASH","seria trzech błysków",0xFFF7B7DF,
+                ()->launchPreset(LampEffects.Kind.FLASH,"Triple Flash",selectedMask(),175,60)),
+            new StudioPresetPanel.Entry("◌ SLOW STROBE","wolny rytm",0xFF9ABCEB,
+                ()->launchPreset(LampEffects.Kind.STROBE,"Slow Strobe",selectedMask(),135,10)),
+            new StudioPresetPanel.Entry("⚡ SNAP","szybkie błyski",0xFFF2CB81,
+                ()->launchPreset(LampEffects.Kind.STROBE_SNAP,"Snap",selectedMask(),185,57)),
+            new StudioPresetPanel.Entry("⚡ RAPID","intensywny efekt",0xFFFF7D88,
+                ()->launchPreset(LampEffects.Kind.STROBE_RAPID,"Rapid",selectedMask(),190,67)),
+            new StudioPresetPanel.Entry("◉ POLICE","niebieski / czerwony",0xFF8FAAFF,
+                ()->launchPreset(LampEffects.Kind.POLICE,"Police",selectedMask(),170,48))
+        );
+    }
+
+    private static final String[] ROOM_NAMES={"Wieczór","Kino","Relaks","Noc"};
+    private static final int[][] ROOM_RGB={
+        {120,50,12},{39,14,76},{17,67,65},{48,5,8}
+    };
+    private void applyRoomPreset(int id){
+        if(id<0||id>=ROOM_RGB.length)return;
+        int mask=selectedMask();
+        if(enabledMask(mask)!=mask){
+            status.setText("Najpierw połącz i włącz "+targetLabel(mask)+" • preset nie uruchomiony");
+            Toast.makeText(this,"Najpierw połącz i włącz wybrane lampy",Toast.LENGTH_LONG).show();
+            return;
+        }
+        if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
+        lampEffects.stop(mask);
+        stopMusicForMask(mask);
+        int[] rgb=ROOM_RGB[id];
+        manualMode=1;
+        brightness.setProgress(255);
+        slidersFromPalette=true;
+        red.setProgress(rgb[0]);green.setProgress(rgb[1]);blue.setProgress(rgb[2]);
+        slidersFromPalette=false;
+        paletteR=rgb[0];paletteG=rgb[1];paletteB=rgb[2];
+        updatePreview(rgb[0],rgb[1],rgb[2]);
+        for(int i=0;i<2;i++)if((mask&(1<<i))!=0){
+            draftMode[i]=DRAFT_RGB;
+            draftRgb[i][0]=rgb[0];draftRgb[i][1]=rgb[1];draftRgb[i][2]=rgb[2];
+        }
+        forMask(mask,l->l.setModeRgb(rgb[0],rgb[1],rgb[2]));
+        if(!lightingSession.hasRunningScenes()){
+            try{stopService(new Intent(this,EffectsForegroundService.class));}
+            catch(Exception ignored){}
+        }
+        showTab(0);
+        status.setText("☾ "+ROOM_NAMES[id]+" • "+targetLabel(mask)+" • światło stałe");
+        rememberFavorite("ROOM:"+id,"☾ "+ROOM_NAMES[id]);
+    }
+
+    /** Scene presets never change the global lamp selection or touch other lamps. */
+    private void launchPreset(LampEffects.Kind kind,String title,int mask,int level,int speed){
+        if(enabledMask(mask)!=mask){
+            String message=mask==3?"Połącz i włącz obie lampy":"Połącz i włącz "+targetLabel(mask);
+            status.setText(message+" • preset "+title+" nie został uruchomiony");
+            Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+            return;
+        }
+        if(palettePending!=null){ui.removeCallbacks(palettePending);palettePending=null;}
+        stopMusicForMask(mask);
+        brightness.setProgress(level);
+        fxSpeed.setProgress(speed);
+        int actual=lampEffects.start(kind,mask,level,speed,
+            red.getProgress(),green.getProgress(),blue.getProgress());
+        if(actual!=0 && ensureEffectsForeground())
+            status.setText("▶ "+title+" • "+targetLabel(actual)+" • "+level*100/255+"% mocy");
     }
 
     private void startPolice(){startScene(LampEffects.Kind.POLICE,"POLICE");}
